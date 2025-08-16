@@ -2021,7 +2021,7 @@ const TaskForm = ({ task, customers, staffMembers, onSubmit }) => {
   );
 };
 
-// SMTP Config Form Component
+// SMTP Config Form Component with Enhanced Error Handling
 const SMTPConfigForm = ({ config, onSave }) => {
   const [formData, setFormData] = useState({
     host: config?.host || '',
@@ -2035,8 +2035,11 @@ const SMTPConfigForm = ({ config, onSave }) => {
   const [testResult, setTestResult] = useState(null);
 
   const handleTest = async () => {
-    if (!formData.host || !formData.user) {
-      setTestResult({ success: false, message: 'Please fill in all required fields' });
+    if (!formData.host || !formData.user || !formData.password) {
+      setTestResult({ 
+        success: false, 
+        message: 'Please fill in Host, Email, and Password fields' 
+      });
       return;
     }
 
@@ -2044,6 +2047,8 @@ const SMTPConfigForm = ({ config, onSave }) => {
     setTestResult(null);
 
     try {
+      console.log('Starting SMTP test...');
+      
       const response = await fetch('/api/test-smtp', {
         method: 'POST',
         headers: {
@@ -2055,12 +2060,56 @@ const SMTPConfigForm = ({ config, onSave }) => {
         })
       });
 
+      console.log('Response status:', response.status);
+      console.log('Response URL:', response.url);
+
+      // Check if we got a proper response
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('API Error Response:', errorText);
+        
+        // Try to parse as JSON, but fallback to text
+        let errorMessage;
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorMessage = errorJson.message || errorJson.error || 'Unknown API error';
+        } catch {
+          errorMessage = `API Error (${response.status}): ${errorText.substring(0, 200)}`;
+        }
+        
+        throw new Error(errorMessage);
+      }
+
+      // Check content type before parsing
+      const contentType = response.headers.get('content-type');
+      if (!contentType || !contentType.includes('application/json')) {
+        const textResponse = await response.text();
+        console.error('Non-JSON response:', textResponse);
+        throw new Error(`API returned HTML instead of JSON. This usually means the API endpoint is not found or there's a server error.`);
+      }
+
       const result = await response.json();
+      console.log('SMTP test result:', result);
       setTestResult(result);
+
     } catch (error) {
+      console.error('SMTP test error:', error);
+      
+      let friendlyMessage = error.message;
+      
+      // Handle specific error types
+      if (error.message.includes('Failed to fetch')) {
+        friendlyMessage = 'Network error: Cannot reach the API. Check if your Vercel deployment is working.';
+      } else if (error.message.includes('not valid JSON')) {
+        friendlyMessage = 'Server error: API endpoint not found or misconfigured.';
+      } else if (error.message.includes('NetworkError')) {
+        friendlyMessage = 'Network error: Check your internet connection.';
+      }
+      
       setTestResult({
         success: false,
-        message: 'Failed to test SMTP configuration'
+        message: friendlyMessage,
+        details: error.message
       });
     } finally {
       setIsLoading(false);
@@ -2075,6 +2124,16 @@ const SMTPConfigForm = ({ config, onSave }) => {
   return (
     <div className="max-w-2xl mx-auto">
       <h3 className="text-xl font-semibold mb-4">SMTP Configuration</h3>
+      
+      {/* Debug Info */}
+      <div className="mb-4 p-3 bg-blue-50 rounded-lg">
+        <p className="text-sm text-blue-800">
+          <strong>Debug Info:</strong> Testing API endpoint at <code>/api/test-smtp</code>
+        </p>
+        <p className="text-xs text-blue-600 mt-1">
+          If you see JSON errors, check your Vercel Functions tab to ensure the API is deployed.
+        </p>
+      </div>
       
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -2096,6 +2155,7 @@ const SMTPConfigForm = ({ config, onSave }) => {
               value={formData.port}
               onChange={(e) => setFormData({ ...formData, port: parseInt(e.target.value) })}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="587"
             />
           </div>
 
@@ -2117,8 +2177,11 @@ const SMTPConfigForm = ({ config, onSave }) => {
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Your app password"
+              placeholder="Your app password (16 characters)"
             />
+            <p className="text-xs text-gray-500 mt-1">
+              For Gmail: Use an App Password, not your regular password
+            </p>
           </div>
         </div>
 
@@ -2130,7 +2193,9 @@ const SMTPConfigForm = ({ config, onSave }) => {
             onChange={(e) => setFormData({ ...formData, secure: e.target.checked })}
             className="mr-2"
           />
-          <label htmlFor="secure" className="text-sm text-gray-700">Use secure connection (SSL/TLS)</label>
+          <label htmlFor="secure" className="text-sm text-gray-700">
+            Use secure connection (SSL/TLS) - Usually false for port 587
+          </label>
         </div>
 
         {testResult && (
@@ -2141,6 +2206,14 @@ const SMTPConfigForm = ({ config, onSave }) => {
               {testResult.success ? '✅ Test Successful!' : '❌ Test Failed'}
             </p>
             <p className="text-sm mt-1">{testResult.message}</p>
+            {testResult.details && testResult.details !== testResult.message && (
+              <details className="mt-2">
+                <summary className="text-xs cursor-pointer">Technical Details</summary>
+                <pre className="text-xs mt-1 p-2 bg-gray-100 rounded overflow-auto">
+                  {testResult.details}
+                </pre>
+              </details>
+            )}
           </div>
         )}
 
@@ -2154,10 +2227,10 @@ const SMTPConfigForm = ({ config, onSave }) => {
             {isLoading ? (
               <>
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Testing...
+                Testing Connection...
               </>
             ) : (
-              'Test Configuration'
+              '🧪 Test Configuration'
             )}
           </button>
 
@@ -2170,6 +2243,17 @@ const SMTPConfigForm = ({ config, onSave }) => {
           </button>
         </div>
       </form>
+
+      {/* Troubleshooting Tips */}
+      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+        <h4 className="font-medium text-gray-900 mb-2">Troubleshooting Tips:</h4>
+        <ul className="text-sm text-gray-600 space-y-1">
+          <li>• Check that your API files are deployed in Vercel Functions</li>
+          <li>• For Gmail: Enable 2FA and create an App Password</li>
+          <li>• Use port 587 with secure = false for most providers</li>
+          <li>• Check Vercel function logs for detailed error messages</li>
+        </ul>
+      </div>
     </div>
   );
 };
