@@ -18,7 +18,6 @@ const createTransporter = () => {
   });
 };
 
-// Main handler function
 async function handler(req, res) {
   // Set CORS headers
   Object.entries(corsHeaders).forEach(([key, value]) => {
@@ -154,5 +153,4 @@ async function handler(req, res) {
   }
 }
 
-// THIS IS THE CRITICAL PART - Export the handler as default
 export default handler;
