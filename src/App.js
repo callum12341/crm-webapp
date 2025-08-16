@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { 
   Search, Users, CheckSquare, Mail, Building, Settings, Menu, X, Eye, FileText,
-  Plus, Edit2, Trash2, Save, User, Phone, Send, Paperclip, Clock, AlertCircle
+  Plus, Edit2, Trash2, Save, User, Phone, Send, Paperclip, Clock
 } from 'lucide-react';
 
 // Sample data (existing data structure)
