@@ -2,7 +2,7 @@
 import React, { useState, useMemo } from 'react';
 import { 
   Search, Users, CheckSquare, Mail, Building, Settings, Menu, X, Eye, FileText,
-  Plus, Edit2, Trash2, Save, Calendar, Clock, AlertCircle, User, Phone, MapPin
+  Plus, Edit2, Trash2, Save, User, Phone
 } from 'lucide-react';
 
 // Sample data
