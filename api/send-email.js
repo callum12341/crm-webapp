@@ -7,15 +7,24 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-// Create transporter function
+// Create transporter function with error handling
 const createTransporter = () => {
+  // Check if required environment variables exist
+  const host = process.env.SMTP_HOST;
+  const user = process.env.SMTP_USER;
+  const pass = process.env.SMTP_PASSWORD;
+  
+  if (!host || !user || !pass) {
+    throw new Error('SMTP configuration incomplete. Please set SMTP_HOST, SMTP_USER, and SMTP_PASSWORD environment variables.');
+  }
+
   return nodemailer.createTransporter({
-    host: process.env.SMTP_HOST,
+    host: host,
     port: parseInt(process.env.SMTP_PORT) || 587,
     secure: process.env.SMTP_SECURE === 'true',
     auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASSWORD
+      user: user,
+      pass: pass
     }
   });
 };
@@ -41,10 +50,17 @@ export default async function handler(req, res) {
 
   try {
     // Check if SMTP is configured
-    if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
+    if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
       return res.status(400).json({
         success: false,
-        message: 'SMTP not configured. Please set environment variables in Vercel dashboard.'
+        message: 'SMTP not configured. Please set SMTP_HOST, SMTP_USER, and SMTP_PASSWORD environment variables in Vercel dashboard.',
+        setupInstructions: {
+          step1: 'Go to Vercel Dashboard → Your Project → Settings → Environment Variables',
+          step2: 'Add SMTP_HOST (e.g., smtp.gmail.com)',
+          step3: 'Add SMTP_USER (your email)',
+          step4: 'Add SMTP_PASSWORD (your app password)',
+          step5: 'Redeploy your application'
+        }
       });
     }
 
@@ -102,10 +118,22 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error('Email send error:', error);
     
+    // Provide specific error messages for common issues
+    let friendlyMessage = error.message;
+    
+    if (error.message.includes('SMTP configuration incomplete')) {
+      friendlyMessage = 'SMTP not configured. Please set up environment variables in Vercel.';
+    } else if (error.code === 'EAUTH') {
+      friendlyMessage = 'Authentication failed. Check your email and password.';
+    } else if (error.code === 'ECONNECTION') {
+      friendlyMessage = 'Connection failed. Check your SMTP host and port.';
+    }
+    
     return res.status(500).json({
       success: false,
-      message: error.message || 'Failed to send email',
-      error: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      message: friendlyMessage,
+      error: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      code: error.code
     });
   }
 }
