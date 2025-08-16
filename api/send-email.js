@@ -1,36 +1,10 @@
-// Use require instead of import for nodemailer in Vercel
-const nodemailer = require('nodemailer');
-
-// Configure CORS headers
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-// Create transporter function with error handling
-const createTransporter = () => {
-  // Check if required environment variables exist
-  const host = process.env.SMTP_HOST;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASSWORD;
-  
-  if (!host || !user || !pass) {
-    throw new Error('SMTP configuration incomplete. Please set SMTP_HOST, SMTP_USER, and SMTP_PASSWORD environment variables.');
-  }
-
-  return nodemailer.createTransporter({
-    host: host,
-    port: parseInt(process.env.SMTP_PORT) || 587,
-    secure: process.env.SMTP_SECURE === 'true',
-    auth: {
-      user: user,
-      pass: pass
-    }
-  });
-};
-
-async function handler(req, res) {
+export default async function handler(req, res) {
   // Set CORS headers
   Object.entries(corsHeaders).forEach(([key, value]) => {
     res.setHeader(key, value);
@@ -50,6 +24,9 @@ async function handler(req, res) {
   }
 
   try {
+    // Dynamic import of nodemailer
+    const { default: nodemailer } = await import('nodemailer');
+
     // Check if SMTP is configured
     if (!process.env.SMTP_HOST || !process.env.SMTP_USER || !process.env.SMTP_PASSWORD) {
       return res.status(400).json({
@@ -86,7 +63,15 @@ async function handler(req, res) {
     }
 
     // Create transporter
-    const transporter = createTransporter();
+    const transporter = nodemailer.createTransporter({
+      host: process.env.SMTP_HOST,
+      port: parseInt(process.env.SMTP_PORT) || 587,
+      secure: process.env.SMTP_SECURE === 'true',
+      auth: {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASSWORD
+      }
+    });
 
     // Prepare email options
     const mailOptions = {
@@ -138,5 +123,3 @@ async function handler(req, res) {
     });
   }
 }
-
-module.exports = handler;
