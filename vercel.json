@@ -10,7 +10,16 @@
       }
     }
   ],
+  "functions": {
+    "api/*.js": {
+      "maxDuration": 30
+    }
+  },
   "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/$1"
+    },
     {
       "src": "/static/(.*)",
       "headers": {
@@ -30,5 +39,12 @@
       "src": "/(.*)",
       "dest": "/index.html"
     }
-  ]
+  ],
+  "env": {
+    "SMTP_HOST": "@smtp_host",
+    "SMTP_PORT": "@smtp_port",
+    "SMTP_SECURE": "@smtp_secure",
+    "SMTP_USER": "@smtp_user",
+    "SMTP_PASSWORD": "@smtp_password"
+  }
 }
