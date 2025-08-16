@@ -1,10 +1,9 @@
-// src/App.js - CRM WebApp with SMTP Email Functionality - FIXED VERSION
+// src/App.js - CRM WebApp with SMTP Email Functionality - COMPLETE VERSION
 import React, { useState, useMemo } from 'react';
 import { 
   Search, Users, CheckSquare, Mail, Building, Settings, Menu, X, Eye, FileText,
   Plus, Edit2, Trash2, Save, User, Phone, Send, Paperclip, Clock, AlertCircle
 } from 'lucide-react';
-// ...existing code...
 
 // Sample data (existing data structure)
 const initialCustomers = [
@@ -1398,7 +1397,7 @@ const ComposeEmailModule = ({ customers, templates, onSend, onQueue, staffMember
   );
 };
 
-// Compose Email Form Component
+// Complete Compose Email Form Component
 const ComposeEmailForm = ({ 
   customer, 
   replyToEmail, 
@@ -1427,6 +1426,7 @@ const ComposeEmailForm = ({
 
   const [errors, setErrors] = useState({});
   const [showTemplates, setShowTemplates] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const validateForm = () => {
     const newErrors = {};
@@ -1439,7 +1439,7 @@ const ComposeEmailForm = ({
   };
 
   const applyTemplate = (template) => {
-    const selectedCustomer = customers.find(c => c.id === parseInt(formData.customerId));
+    const selectedCustomer = customers.find(c => c.id === parseInt(formData.customerId)) || customer;
     const senderName = staffMembers.find(s => s.email === formData.from)?.name || 'Team';
     
     let subject = template.subject
@@ -1457,24 +1457,721 @@ const ComposeEmailForm = ({
     setShowTemplates(false);
   };
 
-const handleSend = async (e) => {
-  e.preventDefault();
-  if (validateForm()) {
-    const emailData = {
-      ...formData,
-      customerId: parseInt(formData.customerId) || null,
-      customerName: formData.customerName || customers.find(c => c.email === formData.to)?.name || ''
-    };
-    
-    const success = await onSend(emailData);
-    if (success && onClose) {
-      onClose();
+  const handleSend = async (e) => {
+    e.preventDefault();
+    if (validateForm()) {
+      setIsLoading(true);
+      const emailData = {
+        ...formData,
+        customerId: parseInt(formData.customerId) || null,
+        customerName: formData.customerName || customers.find(c => c.email === formData.to)?.name || ''
+      };
+      
+      const success = await onSend(emailData);
+      if (success && onClose) {
+        onClose();
+      }
+      setIsLoading(false);
     }
-  }
-}
+  };
 
-// (You likely need to add the rest of the ComposeEmailForm JSX and handlers here, if omitted.)
-// For now, just close the component function:
+  const handleQueue = async (e) => {
+    e.preventDefault();
+    if (validateForm()) {
+      const emailData = {
+        ...formData,
+        customerId: parseInt(formData.customerId) || null,
+        customerName: formData.customerName || customers.find(c => c.email === formData.to)?.name || ''
+      };
+      
+      onQueue(emailData);
+      if (onClose) {
+        onClose();
+      }
+    }
+  };
+
+  return (
+    <div className="max-w-4xl mx-auto">
+      <div className="mb-6">
+        <h3 className="text-xl font-semibold text-gray-900 mb-2">
+          {replyType === 'reply' ? 'Reply to Email' : 'Compose New Email'}
+        </h3>
+        <p className="text-gray-600">Send professional emails to your customers with templates and tracking</p>
+      </div>
+
+      <form onSubmit={handleSend} className="space-y-6">
+        {/* Email Header Section */}
+        <div className="bg-gray-50 rounded-lg p-6 space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">From</label>
+              <select
+                value={formData.from}
+                onChange={(e) => setFormData({ ...formData, from: e.target.value })}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {staffMembers.map(staff => (
+                  <option key={staff.id} value={staff.email}>
+                    {staff.name} ({staff.email})
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Customer</label>
+              <select
+                value={formData.customerId}
+                onChange={(e) => {
+                  const selectedCustomer = customers.find(c => c.id === parseInt(e.target.value));
+                  setFormData({
+                    ...formData,
+                    customerId: e.target.value,
+                    to: selectedCustomer?.email || formData.to,
+                    customerName: selectedCustomer?.name || ''
+                  });
+                }}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="">Select Customer (Optional)</option>
+                {customers.map(customer => (
+                  <option key={customer.id} value={customer.id}>
+                    {customer.name} ({customer.email})
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">To *</label>
+            <input
+              type="email"
+              value={formData.to}
+              onChange={(e) => setFormData({ ...formData, to: e.target.value })}
+              className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.to ? 'border-red-500' : 'border-gray-300'
+              }`}
+              placeholder="recipient@example.com"
+            />
+            {errors.to && <p className="text-red-500 text-sm mt-1">{errors.to}</p>}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">CC</label>
+              <input
+                type="email"
+                value={formData.cc}
+                onChange={(e) => setFormData({ ...formData, cc: e.target.value })}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="cc@example.com"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">BCC</label>
+              <input
+                type="email"
+                value={formData.bcc}
+                onChange={(e) => setFormData({ ...formData, bcc: e.target.value })}
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="bcc@example.com"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Subject *</label>
+            <input
+              type="text"
+              value={formData.subject}
+              onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+              className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                errors.subject ? 'border-red-500' : 'border-gray-300'
+              }`}
+              placeholder="Enter email subject"
+            />
+            {errors.subject && <p className="text-red-500 text-sm mt-1">{errors.subject}</p>}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+            <select
+              value={formData.priority}
+              onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="low">Low Priority</option>
+              <option value="normal">Normal Priority</option>
+              <option value="high">High Priority</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Template Section */}
+        <div className="bg-white border rounded-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h4 className="text-lg font-medium text-gray-900">Email Templates</h4>
+            <button
+              type="button"
+              onClick={() => setShowTemplates(!showTemplates)}
+              className="text-blue-600 hover:text-blue-800 font-medium"
+            >
+              {showTemplates ? 'Hide Templates' : 'Show Templates'}
+            </button>
+          </div>
+          
+          {showTemplates && (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              {templates.map(template => (
+                <div
+                  key={template.id}
+                  className="border rounded-lg p-4 cursor-pointer hover:bg-blue-50 hover:border-blue-300 transition-colors"
+                  onClick={() => applyTemplate(template)}
+                >
+                  <h5 className="font-medium text-gray-900 mb-2">{template.name}</h5>
+                  <p className="text-sm text-gray-600 mb-2">{template.subject}</p>
+                  <p className="text-xs text-gray-500 line-clamp-3">{template.body.substring(0, 100)}...</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Email Body */}
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Message *</label>
+          <textarea
+            value={formData.body}
+            onChange={(e) => setFormData({ ...formData, body: e.target.value })}
+            rows={12}
+            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.body ? 'border-red-500' : 'border-gray-300'
+            }`}
+            placeholder="Write your email message here..."
+          />
+          {errors.body && <p className="text-red-500 text-sm mt-1">{errors.body}</p>}
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex items-center justify-between pt-6 border-t">
+          <div className="flex items-center space-x-4">
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center transition-colors"
+            >
+              {isLoading ? (
+                <>
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Sending...
+                </>
+              ) : (
+                <>
+                  <Send size={16} className="mr-2" />
+                  Send Email
+                </>
+              )}
+            </button>
+            
+            <button
+              type="button"
+              onClick={handleQueue}
+              disabled={isLoading}
+              className="bg-yellow-600 text-white px-6 py-2 rounded-lg hover:bg-yellow-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center transition-colors"
+            >
+              <Clock size={16} className="mr-2" />
+              Add to Queue
+            </button>
+          </div>
+
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-gray-600 hover:text-gray-800 px-4 py-2 rounded-lg hover:bg-gray-100 transition-colors"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+      </form>
+    </div>
+  );
+};
+
+// Modal Component
+const Modal = ({ children, onClose }) => {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-6 border-b">
+          <h3 className="text-lg font-semibold text-gray-900">Modal</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X size={24} />
+          </button>
+        </div>
+        <div className="p-6">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Customer Form Component
+const CustomerForm = ({ customer, onSubmit }) => {
+  const [formData, setFormData] = useState({
+    name: customer?.name || '',
+    email: customer?.email || '',
+    phone: customer?.phone || '',
+    company: customer?.company || '',
+    address: customer?.address || '',
+    status: customer?.status || 'Lead',
+    orderValue: customer?.orderValue || 0,
+    tags: customer?.tags?.join(', ') || ''
+  });
+
+  const [errors, setErrors] = useState({});
+
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.name.trim()) newErrors.name = 'Name is required';
+    if (!formData.email.trim()) newErrors.email = 'Email is required';
+    if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Email is invalid';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (validateForm()) {
+      onSubmit(formData);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <h3 className="text-lg font-semibold mb-4">
+        {customer ? 'Edit Customer' : 'Add New Customer'}
+      </h3>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+          <input
+            type="text"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.name ? 'border-red-500' : 'border-gray-300'
+            }`}
+          />
+          {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+          <input
+            type="email"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.email ? 'border-red-500' : 'border-gray-300'
+            }`}
+          />
+          {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+          <input
+            type="tel"
+            value={formData.phone}
+            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
+          <input
+            type="text"
+            value={formData.company}
+            onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+          <select
+            value={formData.status}
+            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="Lead">Lead</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Order Value ($)</label>
+          <input
+            type="number"
+            value={formData.orderValue}
+            onChange={(e) => setFormData({ ...formData, orderValue: e.target.value })}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            min="0"
+            step="0.01"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+        <textarea
+          value={formData.address}
+          onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+          rows={2}
+          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Tags (comma separated)</label>
+        <input
+          type="text"
+          value={formData.tags}
+          onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="VIP, Enterprise, Hot Lead"
+        />
+      </div>
+
+      <div className="flex justify-end space-x-3 pt-4">
+        <button
+          type="submit"
+          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 flex items-center transition-colors"
+        >
+          <Save size={16} className="mr-2" />
+          {customer ? 'Update Customer' : 'Add Customer'}
+        </button>
+      </div>
+    </form>
+  );
+};
+
+// Task Form Component
+const TaskForm = ({ task, customers, staffMembers, onSubmit }) => {
+  const [formData, setFormData] = useState({
+    title: task?.title || '',
+    description: task?.description || '',
+    customerId: task?.customerId || '',
+    assignedTo: task?.assignedTo || '',
+    priority: task?.priority || 'Medium',
+    dueDate: task?.dueDate || '',
+    tags: task?.tags?.join(', ') || ''
+  });
+
+  const [errors, setErrors] = useState({});
+
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.title.trim()) newErrors.title = 'Title is required';
+    if (!formData.customerId) newErrors.customerId = 'Customer is required';
+    if (!formData.assignedTo) newErrors.assignedTo = 'Assigned to is required';
+    if (!formData.dueDate) newErrors.dueDate = 'Due date is required';
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (validateForm()) {
+      onSubmit(formData);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <h3 className="text-lg font-semibold mb-4">
+        {task ? 'Edit Task' : 'Create New Task'}
+      </h3>
+      
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+        <input
+          type="text"
+          value={formData.title}
+          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+          className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            errors.title ? 'border-red-500' : 'border-gray-300'
+          }`}
+        />
+        {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title}</p>}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+        <textarea
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          rows={3}
+          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Customer *</label>
+          <select
+            value={formData.customerId}
+            onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
+            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.customerId ? 'border-red-500' : 'border-gray-300'
+            }`}
+          >
+            <option value="">Select Customer</option>
+            {customers.map(customer => (
+              <option key={customer.id} value={customer.id}>
+                {customer.name} ({customer.company})
+              </option>
+            ))}
+          </select>
+          {errors.customerId && <p className="text-red-500 text-sm mt-1">{errors.customerId}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Assigned To *</label>
+          <select
+            value={formData.assignedTo}
+            onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
+            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.assignedTo ? 'border-red-500' : 'border-gray-300'
+            }`}
+          >
+            <option value="">Select Staff Member</option>
+            {staffMembers.map(staff => (
+              <option key={staff.id} value={staff.name}>
+                {staff.name} ({staff.role})
+              </option>
+            ))}
+          </select>
+          {errors.assignedTo && <p className="text-red-500 text-sm mt-1">{errors.assignedTo}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+          <select
+            value={formData.priority}
+            onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Due Date *</label>
+          <input
+            type="date"
+            value={formData.dueDate}
+            onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.dueDate ? 'border-red-500' : 'border-gray-300'
+            }`}
+          />
+          {errors.dueDate && <p className="text-red-500 text-sm mt-1">{errors.dueDate}</p>}
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Tags (comma separated)</label>
+        <input
+          type="text"
+          value={formData.tags}
+          onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Sales, Follow-up, Demo"
+        />
+      </div>
+
+      <div className="flex justify-end space-x-3 pt-4">
+        <button
+          type="submit"
+          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 flex items-center transition-colors"
+        >
+          <Save size={16} className="mr-2" />
+          {task ? 'Update Task' : 'Create Task'}
+        </button>
+      </div>
+    </form>
+  );
+};
+
+// SMTP Config Form Component
+const SMTPConfigForm = ({ config, onSave }) => {
+  const [formData, setFormData] = useState({
+    host: config?.host || '',
+    port: config?.port || 587,
+    secure: config?.secure || false,
+    user: config?.user || '',
+    password: ''
+  });
+
+  const [isLoading, setIsLoading] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+
+  const handleTest = async () => {
+    if (!formData.host || !formData.user) {
+      setTestResult({ success: false, message: 'Please fill in all required fields' });
+      return;
+    }
+
+    setIsLoading(true);
+    setTestResult(null);
+
+    try {
+      const response = await fetch('/api/test-smtp', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          config: formData,
+          testEmail: formData.user
+        })
+      });
+
+      const result = await response.json();
+      setTestResult(result);
+    } catch (error) {
+      setTestResult({
+        success: false,
+        message: 'Failed to test SMTP configuration'
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(formData);
+  };
+
+  return (
+    <div className="max-w-2xl mx-auto">
+      <h3 className="text-xl font-semibold mb-4">SMTP Configuration</h3>
+      
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">SMTP Host *</label>
+            <input
+              type="text"
+              value={formData.host}
+              onChange={(e) => setFormData({ ...formData, host: e.target.value })}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="smtp.gmail.com"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Port</label>
+            <input
+              type="number"
+              value={formData.port}
+              onChange={(e) => setFormData({ ...formData, port: parseInt(e.target.value) })}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Username/Email *</label>
+            <input
+              type="email"
+              value={formData.user}
+              onChange={(e) => setFormData({ ...formData, user: e.target.value })}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="your-email@gmail.com"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
+            <input
+              type="password"
+              value={formData.password}
+              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              placeholder="Your app password"
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center">
+          <input
+            type="checkbox"
+            id="secure"
+            checked={formData.secure}
+            onChange={(e) => setFormData({ ...formData, secure: e.target.checked })}
+            className="mr-2"
+          />
+          <label htmlFor="secure" className="text-sm text-gray-700">Use secure connection (SSL/TLS)</label>
+        </div>
+
+        {testResult && (
+          <div className={`p-4 rounded-lg ${
+            testResult.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+          }`}>
+            <p className="font-medium">
+              {testResult.success ? '✅ Test Successful!' : '❌ Test Failed'}
+            </p>
+            <p className="text-sm mt-1">{testResult.message}</p>
+          </div>
+        )}
+
+        <div className="flex justify-between pt-4">
+          <button
+            type="button"
+            onClick={handleTest}
+            disabled={isLoading}
+            className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 disabled:opacity-50 flex items-center"
+          >
+            {isLoading ? (
+              <>
+                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                Testing...
+              </>
+            ) : (
+              'Test Configuration'
+            )}
+          </button>
+
+          <button
+            type="submit"
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 flex items-center"
+          >
+            <Save size={16} className="mr-2" />
+            Save Configuration
+          </button>
+        </div>
+      </form>
+    </div>
+  );
 };
 
 export default CRM;
