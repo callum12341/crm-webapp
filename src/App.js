@@ -212,7 +212,7 @@ const CRM = () => {
   // SMTP Email functionality
   const sendEmail = async (emailData) => {
     try {
-      const response = await fetch('/api/send-email', {
+      const response = await fetch('/api/send-email.js', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -278,7 +278,7 @@ const CRM = () => {
     showNotification(`Processing ${emailQueue.length} queued emails...`, 'info');
     
     try {
-      const response = await fetch('/api/bulk-email', {
+      const response = await fetch('/api/bulk-email.js', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -2049,7 +2049,7 @@ const SMTPConfigForm = ({ config, onSave }) => {
     try {
       console.log('Starting SMTP test...');
       
-      const response = await fetch('/api/test-smtp', {
+      const response = await fetch('/api/test-smtp.js', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
