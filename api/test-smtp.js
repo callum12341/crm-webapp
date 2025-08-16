@@ -6,7 +6,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
-export default async function handler(req, res) {
+// This is the main handler function that Vercel will call
+async function handler(req, res) {
   // Set CORS headers
   Object.entries(corsHeaders).forEach(([key, value]) => {
     res.setHeader(key, value);
@@ -141,3 +142,6 @@ export default async function handler(req, res) {
     });
   }
 }
+
+// THIS IS THE CRITICAL PART - Export the handler as default
+export default handler;
