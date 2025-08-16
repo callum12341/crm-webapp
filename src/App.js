@@ -1,11 +1,11 @@
-// src/App.js - CRM WebApp with Full CRUD Operations
+// src/App.js - CRM WebApp with Full CRUD Operations (Fixed)
 import React, { useState, useMemo } from 'react';
 import { 
   Search, Users, CheckSquare, Mail, Building, Settings, Menu, X, Eye, FileText,
   Plus, Edit2, Trash2, Save, Calendar, Clock, AlertCircle, User, Phone, MapPin
 } from 'lucide-react';
 
-// Sample data - in production this would come from your backend API
+// Sample data
 const initialCustomers = [
   {
     id: 1,
@@ -34,20 +34,6 @@ const initialCustomers = [
     lastContact: '2024-08-12',
     orderValue: 1200.00,
     tags: ['Hot Lead']
-  },
-  {
-    id: 3,
-    name: 'Michael Chen',
-    email: 'mchen@innovate.co',
-    phone: '+1-555-0125',
-    company: 'Innovate Co',
-    address: '789 Pine St, City, State 12345',
-    status: 'Active',
-    source: 'Referral',
-    created: '2024-03-10',
-    lastContact: '2024-08-14',
-    orderValue: 5500.00,
-    tags: ['Enterprise', 'Priority']
   }
 ];
 
@@ -79,20 +65,6 @@ const initialTasks = [
     dueDate: '2024-08-18',
     created: '2024-08-14',
     tags: ['Demo', 'Sales']
-  },
-  {
-    id: 3,
-    title: 'Prepare contract documents',
-    description: 'Draft and review contract for enterprise client',
-    customerId: 3,
-    customerName: 'Michael Chen',
-    assignedTo: 'David Brown',
-    assignedToEmail: 'david@company.com',
-    priority: 'High',
-    status: 'Pending',
-    dueDate: '2024-08-19',
-    created: '2024-08-16',
-    tags: ['Legal', 'Contract']
   }
 ];
 
@@ -104,45 +76,18 @@ const initialEmails = [
     subject: 'Re: Enterprise Package Inquiry',
     from: 'john.smith@example.com',
     to: 'sales@company.com',
-    body: 'Hi, I\'m interested in learning more about your enterprise package. Could you provide more details about pricing and features?',
+    body: 'Hi, I am interested in learning more about your enterprise package.',
     timestamp: '2024-08-15 10:30:00',
     isRead: true,
     isStarred: false,
     thread: 'thread_1'
-  },
-  {
-    id: 2,
-    customerId: 2,
-    customerName: 'Sarah Johnson',
-    subject: 'Product Demo Request',
-    from: 'sarah.j@techstart.com',
-    to: 'info@company.com',
-    body: 'Hello, I would like to schedule a product demo for our team. We\'re evaluating solutions for our upcoming project.',
-    timestamp: '2024-08-14 14:20:00',
-    isRead: false,
-    isStarred: true,
-    thread: 'thread_2'
-  },
-  {
-    id: 3,
-    customerId: 3,
-    customerName: 'Michael Chen',
-    subject: 'Contract Terms Discussion',
-    from: 'mchen@innovate.co',
-    to: 'legal@company.com',
-    body: 'We need to discuss the contract terms for our enterprise agreement. Please schedule a call to review requirements.',
-    timestamp: '2024-08-16 09:15:00',
-    isRead: false,
-    isStarred: false,
-    thread: 'thread_3'
   }
 ];
 
 const staffMembers = [
   { id: 1, name: 'Mike Wilson', email: 'mike@company.com', role: 'Sales Manager' },
   { id: 2, name: 'Lisa Chen', email: 'lisa@company.com', role: 'Account Executive' },
-  { id: 3, name: 'David Brown', email: 'david@company.com', role: 'Support Lead' },
-  { id: 4, name: 'Emma Rodriguez', email: 'emma@company.com', role: 'Customer Success' }
+  { id: 3, name: 'David Brown', email: 'david@company.com', role: 'Support Lead' }
 ];
 
 const CRM = () => {
@@ -207,9 +152,8 @@ const CRM = () => {
 
   const deleteCustomer = (id) => {
     const customer = customers.find(c => c.id === id);
-    if (window.confirm(`Are you sure you want to delete "${customer.name}"? This action cannot be undone.`)) {
+    if (window.confirm(`Are you sure you want to delete "${customer.name}"?`)) {
       setCustomers(customers.filter(c => c.id !== id));
-      // Also delete related tasks
       setTasks(tasks.filter(t => t.customerId !== id));
       showNotification(`Customer "${customer.name}" deleted successfully!`);
     }
@@ -233,9 +177,6 @@ const CRM = () => {
     setTasks([...tasks, newTask]);
     showNotification(`Task "${newTask.title}" assigned to ${newTask.assignedTo}!`);
     closeModal();
-    
-    // Simulate email notification
-    console.log(`📧 Email notification sent to ${newTask.assignedToEmail} for new task: ${newTask.title}`);
   };
 
   const updateTask = (updatedData) => {
@@ -315,9 +256,7 @@ const CRM = () => {
         <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 ${
           notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
         }`}>
-          <div className="flex items-center space-x-2">
-            <span>{notification.message}</span>
-          </div>
+          {notification.message}
         </div>
       )}
 
@@ -360,7 +299,7 @@ const CRM = () => {
           <div className="absolute bottom-4 left-4 right-4">
             <div className="bg-green-50 rounded-lg p-3">
               <p className="text-xs text-green-800 font-medium">🎉 CRUD Enabled!</p>
-              <p className="text-xs text-green-600 mt-1">Now you can add, edit & delete!</p>
+              <p className="text-xs text-green-600 mt-1">Add, Edit & Delete!</p>
             </div>
           </div>
         )}
@@ -392,7 +331,7 @@ const CRM = () => {
                 placeholder="Search everything..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-80 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="pl-10 pr-4 py-2 border border-gray-300 rounded-lg w-80 focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
               {searchQuery && (
                 <button
@@ -487,8 +426,6 @@ const Dashboard = ({ customers, tasks, emails }) => {
     new Date(task.dueDate) < new Date() && task.status !== 'Completed'
   );
 
-  const recentTasks = tasks.slice(-3).reverse();
-
   return (
     <div className="space-y-6">
       {/* Stats Cards */}
@@ -525,85 +462,41 @@ const Dashboard = ({ customers, tasks, emails }) => {
         />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Recent Tasks */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <h3 className="text-lg font-semibold mb-4 flex items-center">
-            <Clock className="mr-2" size={20} />
-            Recent Tasks
-          </h3>
-          {recentTasks.length === 0 ? (
-            <p className="text-gray-500">No tasks yet. Create your first task!</p>
-          ) : (
-            <div className="space-y-3">
-              {recentTasks.map(task => (
-                <div key={task.id} className="flex items-center justify-between py-2 border-b last:border-b-0">
-                  <div className="flex-1">
-                    <p className="font-medium text-sm">{task.title}</p>
-                    <p className="text-xs text-gray-500">{task.customerName} • {task.assignedTo}</p>
-                  </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    task.priority === 'High' ? 'bg-red-100 text-red-800' :
-                    task.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-green-100 text-green-800'
-                  }`}>
-                    {task.priority}
-                  </span>
-                </div>
+      {/* Welcome Section */}
+      <div className="bg-white rounded-lg shadow p-6">
+        <h3 className="text-lg font-semibold mb-4 text-gray-900">🎉 CRM with Full CRUD Operations!</h3>
+        <p className="text-gray-600 mb-4">
+          Your CRM now supports adding, editing, and deleting customers and tasks. 
+          Try the new features using the buttons in each module!
+        </p>
+        
+        {overdueTasks.length > 0 && (
+          <div className="mt-6 p-4 bg-red-50 rounded-lg">
+            <h4 className="font-medium text-red-800 mb-2">⚠️ You have {overdueTasks.length} overdue task(s)</h4>
+            <div className="space-y-1">
+              {overdueTasks.map(task => (
+                <p key={task.id} className="text-sm text-red-700">• {task.title} (Due: {task.dueDate})</p>
               ))}
             </div>
-          )}
-        </div>
-
-        {/* Overdue Tasks & New Features */}
-        <div className="space-y-6">
-          <div className="bg-white rounded-lg shadow p-6">
-            <h3 className="text-lg font-semibold mb-4 flex items-center">
-              <AlertCircle className="mr-2 text-red-500" size={20} />
-              Overdue Tasks
-            </h3>
-            {overdueTasks.length === 0 ? (
-              <div className="text-center py-4">
-                <CheckSquare className="mx-auto h-8 w-8 text-green-500 mb-2" />
-                <p className="text-green-600 font-medium">All caught up! 🎉</p>
-                <p className="text-sm text-gray-500">No overdue tasks</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {overdueTasks.map(task => (
-                  <div key={task.id} className="flex items-center justify-between py-2 border-b last:border-b-0">
-                    <div>
-                      <p className="font-medium text-red-600">{task.title}</p>
-                      <p className="text-sm text-gray-500">Due: {task.dueDate} • {task.customerName}</p>
-                    </div>
-                    <AlertCircle className="text-red-500" size={16} />
-                  </div>
-                ))}
-              </div>
-            )}
           </div>
-
-          {/* New Features */}
-          <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg p-6 border-2 border-blue-200">
-            <h3 className="text-lg font-semibold text-blue-800 mb-3">🎉 New Features!</h3>
-            <div className="space-y-2 text-sm text-blue-700">
-              <div className="flex items-center">
-                <Plus className="mr-2" size={14} />
-                <span>Add new customers and tasks</span>
-              </div>
-              <div className="flex items-center">
-                <Edit2 className="mr-2" size={14} />
-                <span>Edit existing records</span>
-              </div>
-              <div className="flex items-center">
-                <Trash2 className="mr-2" size={14} />
-                <span>Delete unwanted items</span>
-              </div>
-              <div className="flex items-center">
-                <Save className="mr-2" size={14} />
-                <span>Auto-save with notifications</span>
-              </div>
-            </div>
+        )}
+        
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="p-4 bg-blue-50 rounded-lg">
+            <h5 className="font-medium text-blue-800 mb-2">➕ Add Data</h5>
+            <p className="text-sm text-blue-700">Create new customers and tasks</p>
+          </div>
+          <div className="p-4 bg-green-50 rounded-lg">
+            <h5 className="font-medium text-green-800 mb-2">✏️ Edit Records</h5>
+            <p className="text-sm text-green-700">Update existing information</p>
+          </div>
+          <div className="p-4 bg-purple-50 rounded-lg">
+            <h5 className="font-medium text-purple-800 mb-2">🗑️ Delete Items</h5>
+            <p className="text-sm text-purple-700">Remove unwanted records</p>
+          </div>
+          <div className="p-4 bg-orange-50 rounded-lg">
+            <h5 className="font-medium text-orange-800 mb-2">🔍 Search All</h5>
+            <p className="text-sm text-orange-700">Find anything instantly</p>
           </div>
         </div>
       </div>
@@ -671,20 +564,15 @@ const SearchResults = ({ results, onClearSearch }) => {
       
       {results.customers.length > 0 && (
         <div className="mb-6">
-          <h4 className="font-medium text-gray-700 mb-3 flex items-center">
-            <Users className="mr-2" size={16} />
-            Customers ({results.customers.length})
-          </h4>
+          <h4 className="font-medium text-gray-700 mb-3">Customers ({results.customers.length})</h4>
           <div className="space-y-2">
             {results.customers.map(customer => (
-              <div key={customer.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors">
+              <div key={customer.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
                 <div>
                   <p className="font-medium">{customer.name}</p>
                   <p className="text-sm text-gray-500">{customer.email} • {customer.company}</p>
                 </div>
-                <button className="text-blue-600 hover:text-blue-800 p-2 rounded">
-                  <Eye size={16} />
-                </button>
+                <Eye size={16} className="text-blue-600" />
               </div>
             ))}
           </div>
@@ -693,25 +581,12 @@ const SearchResults = ({ results, onClearSearch }) => {
 
       {results.tasks.length > 0 && (
         <div className="mb-6">
-          <h4 className="font-medium text-gray-700 mb-3 flex items-center">
-            <CheckSquare className="mr-2" size={16} />
-            Tasks ({results.tasks.length})
-          </h4>
+          <h4 className="font-medium text-gray-700 mb-3">Tasks ({results.tasks.length})</h4>
           <div className="space-y-2">
             {results.tasks.map(task => (
-              <div key={task.id} className="p-3 border rounded-lg hover:bg-gray-50 transition-colors">
-                <div className="flex items-center justify-between mb-2">
-                  <p className="font-medium">{task.title}</p>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                    task.priority === 'High' ? 'bg-red-100 text-red-800' :
-                    task.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-green-100 text-green-800'
-                  }`}>
-                    {task.priority}
-                  </span>
-                </div>
-                <p className="text-sm text-gray-600 mb-2">{task.description}</p>
-                <p className="text-xs text-gray-500">{task.customerName} • Due: {task.dueDate}</p>
+              <div key={task.id} className="p-3 border rounded-lg hover:bg-gray-50">
+                <p className="font-medium">{task.title}</p>
+                <p className="text-sm text-gray-500">{task.customerName} • Due: {task.dueDate}</p>
               </div>
             ))}
           </div>
@@ -720,20 +595,12 @@ const SearchResults = ({ results, onClearSearch }) => {
 
       {results.emails.length > 0 && (
         <div>
-          <h4 className="font-medium text-gray-700 mb-3 flex items-center">
-            <Mail className="mr-2" size={16} />
-            Emails ({results.emails.length})
-          </h4>
+          <h4 className="font-medium text-gray-700 mb-3">Emails ({results.emails.length})</h4>
           <div className="space-y-2">
             {results.emails.map(email => (
-              <div key={email.id} className="p-3 border rounded-lg hover:bg-gray-50 transition-colors">
-                <div className="flex items-start justify-between mb-2">
-                  <div className="flex-1">
-                    <p className="font-medium">{email.subject}</p>
-                    <p className="text-sm text-gray-500">{email.customerName} • {email.timestamp}</p>
-                  </div>
-                </div>
-                <p className="text-sm text-gray-600 truncate">{email.body}</p>
+              <div key={email.id} className="p-3 border rounded-lg hover:bg-gray-50">
+                <p className="font-medium">{email.subject}</p>
+                <p className="text-sm text-gray-500">{email.customerName} • {email.timestamp}</p>
               </div>
             ))}
           </div>
@@ -743,10 +610,8 @@ const SearchResults = ({ results, onClearSearch }) => {
   );
 };
 
-// Customers Module with CRUD
+// Customers Module
 const CustomersModule = ({ customers, onAdd, onEdit, onDelete }) => {
-  const [viewMode, setViewMode] = useState('grid');
-
   return (
     <div className="space-y-6">
       {/* Header with Add Button */}
@@ -764,56 +629,17 @@ const CustomersModule = ({ customers, onAdd, onEdit, onDelete }) => {
         </button>
       </div>
 
-      {/* View Mode Toggle */}
-      <div className="bg-white rounded-lg shadow p-4">
-        <div className="flex justify-between items-center">
-          <h4 className="font-medium">View Options</h4>
-          <div className="flex space-x-2">
-            <button
-              onClick={() => setViewMode('grid')}
-              className={`p-2 rounded ${viewMode === 'grid' ? 'bg-blue-100 text-blue-600' : 'text-gray-600 hover:bg-gray-100'}`}
-            >
-              <div className="w-4 h-4 grid grid-cols-2 gap-0.5">
-                <div className="bg-current rounded-sm"></div>
-                <div className="bg-current rounded-sm"></div>
-                <div className="bg-current rounded-sm"></div>
-                <div className="bg-current rounded-sm"></div>
-              </div>
-            </button>
-            <button
-              onClick={() => setViewMode('table')}
-              className={`p-2 rounded ${viewMode === 'table' ? 'bg-blue-100 text-blue-600' : 'text-gray-600 hover:bg-gray-100'}`}
-            >
-              <div className="w-4 h-4 flex flex-col gap-0.5">
-                <div className="bg-current h-0.5 rounded"></div>
-                <div className="bg-current h-0.5 rounded"></div>
-                <div className="bg-current h-0.5 rounded"></div>
-                <div className="bg-current h-0.5 rounded"></div>
-              </div>
-            </button>
-          </div>
-        </div>
+      {/* Customer Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {customers.map(customer => (
+          <CustomerCard
+            key={customer.id}
+            customer={customer}
+            onEdit={() => onEdit(customer)}
+            onDelete={() => onDelete(customer.id)}
+          />
+        ))}
       </div>
-
-      {/* Customer Display */}
-      {viewMode === 'grid' ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {customers.map(customer => (
-            <CustomerCard
-              key={customer.id}
-              customer={customer}
-              onEdit={() => onEdit(customer)}
-              onDelete={() => onDelete(customer.id)}
-            />
-          ))}
-        </div>
-      ) : (
-        <CustomerTable
-          customers={customers}
-          onEdit={onEdit}
-          onDelete={onDelete}
-        />
-      )}
 
       {customers.length === 0 && (
         <div className="text-center py-12 bg-white rounded-lg shadow">
@@ -848,9 +674,7 @@ const CustomerCard = ({ customer, onEdit, onDelete }) => {
           </div>
         </div>
         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-          customer.status === 'Active' ? 'bg-green-100 text-green-800' : 
-          customer.status === 'Lead' ? 'bg-yellow-100 text-yellow-800' :
-          'bg-gray-100 text-gray-800'
+          customer.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
         }`}>
           {customer.status}
         </span>
@@ -871,23 +695,6 @@ const CustomerCard = ({ customer, onEdit, onDelete }) => {
         </div>
       </div>
 
-      {customer.tags.length > 0 && (
-        <div className="mb-4">
-          <div className="flex flex-wrap gap-1">
-            {customer.tags.slice(0, 3).map((tag, index) => (
-              <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded">
-                {tag}
-              </span>
-            ))}
-            {customer.tags.length > 3 && (
-              <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                +{customer.tags.length - 3} more
-              </span>
-            )}
-          </div>
-        </div>
-      )}
-
       <div className="flex items-center justify-between pt-4 border-t">
         <div className="text-xs text-gray-500">
           Created: {customer.created}
@@ -895,15 +702,13 @@ const CustomerCard = ({ customer, onEdit, onDelete }) => {
         <div className="flex space-x-2">
           <button
             onClick={onEdit}
-            className="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50 transition-colors"
-            title="Edit customer"
+            className="text-blue-600 hover:text-blue-800 p-2 rounded-full hover:bg-blue-50"
           >
             <Edit2 size={14} />
           </button>
           <button
             onClick={onDelete}
-            className="text-red-600 hover:text-red-800 p-2 rounded-full hover:bg-red-50 transition-colors"
-            title="Delete customer"
+            className="text-red-600 hover:text-red-800 p-2 rounded-full hover:bg-red-50"
           >
             <Trash2 size={14} />
           </button>
@@ -913,89 +718,7 @@ const CustomerCard = ({ customer, onEdit, onDelete }) => {
   );
 };
 
-// Customer Table Component
-const CustomerTable = ({ customers, onEdit, onDelete }) => {
-  return (
-    <div className="bg-white rounded-lg shadow overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="min-w-full divide-y divide-gray-200">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Customer
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Contact
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Status
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Order Value
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                Actions
-              </th>
-            </tr>
-          </thead>
-          <tbody className="bg-white divide-y divide-gray-200">
-            {customers.map(customer => (
-              <tr key={customer.id} className="hover:bg-gray-50">
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center">
-                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center mr-3">
-                      <User className="text-blue-600" size={16} />
-                    </div>
-                    <div>
-                      <div className="text-sm font-medium text-gray-900">{customer.name}</div>
-                      <div className="text-sm text-gray-500">{customer.company}</div>
-                    </div>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900">{customer.email}</div>
-                  <div className="text-sm text-gray-500">{customer.phone}</div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
-                    customer.status === 'Active' ? 'bg-green-100 text-green-800' : 
-                    customer.status === 'Lead' ? 'bg-yellow-100 text-yellow-800' :
-                    'bg-gray-100 text-gray-800'
-                  }`}>
-                    {customer.status}
-                  </span>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                  ${customer.orderValue.toLocaleString()}
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                  <div className="flex justify-end space-x-2">
-                    <button
-                      onClick={() => onEdit(customer)}
-                      className="text-blue-600 hover:text-blue-900 p-1 rounded"
-                      title="Edit customer"
-                    >
-                      <Edit2 size={16} />
-                    </button>
-                    <button
-                      onClick={() => onDelete(customer.id)}
-                      className="text-red-600 hover:text-red-900 p-1 rounded"
-                      title="Delete customer"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-};
-
-// Tasks Module with CRUD
+// Tasks Module
 const TasksModule = ({ tasks, customers, staffMembers, onAdd, onEdit, onDelete, onUpdateStatus }) => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
@@ -1010,8 +733,7 @@ const TasksModule = ({ tasks, customers, staffMembers, onAdd, onEdit, onDelete, 
     total: tasks.length,
     pending: tasks.filter(t => t.status === 'Pending').length,
     inProgress: tasks.filter(t => t.status === 'In Progress').length,
-    completed: tasks.filter(t => t.status === 'Completed').length,
-    overdue: tasks.filter(t => new Date(t.dueDate) < new Date() && t.status !== 'Completed').length
+    completed: tasks.filter(t => t.status === 'Completed').length
   };
 
   return (
@@ -1032,7 +754,7 @@ const TasksModule = ({ tasks, customers, staffMembers, onAdd, onEdit, onDelete, 
       </div>
 
       {/* Task Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-white rounded-lg shadow p-4">
           <div className="text-2xl font-bold text-gray-900">{taskStats.total}</div>
           <div className="text-sm text-gray-500">Total Tasks</div>
@@ -1048,10 +770,6 @@ const TasksModule = ({ tasks, customers, staffMembers, onAdd, onEdit, onDelete, 
         <div className="bg-white rounded-lg shadow p-4">
           <div className="text-2xl font-bold text-green-600">{taskStats.completed}</div>
           <div className="text-sm text-gray-500">Completed</div>
-        </div>
-        <div className="bg-white rounded-lg shadow p-4">
-          <div className="text-2xl font-bold text-red-600">{taskStats.overdue}</div>
-          <div className="text-sm text-gray-500">Overdue</div>
         </div>
       </div>
 
@@ -1103,14 +821,9 @@ const TasksModule = ({ tasks, customers, staffMembers, onAdd, onEdit, onDelete, 
       {filteredTasks.length === 0 && (
         <div className="text-center py-12 bg-white rounded-lg shadow">
           <CheckSquare className="mx-auto h-12 w-12 text-gray-400 mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">
-            {tasks.length === 0 ? 'No tasks yet' : 'No tasks match your filters'}
-          </h3>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No tasks found</h3>
           <p className="text-gray-500 mb-4">
-            {tasks.length === 0 
-              ? 'Get started by creating your first task' 
-              : 'Try adjusting your filter criteria'
-            }
+            {tasks.length === 0 ? 'Get started by creating your first task' : 'Try adjusting your filters'}
           </p>
           {tasks.length === 0 && (
             <button
@@ -1129,14 +842,6 @@ const TasksModule = ({ tasks, customers, staffMembers, onAdd, onEdit, onDelete, 
 
 // Task Card Component
 const TaskCard = ({ task, onEdit, onDelete, onUpdateStatus }) => {
-  const getTaskStatusColor = (status) => {
-    switch (status) {
-      case 'Completed': return 'bg-green-100 text-green-800';
-      case 'In Progress': return 'bg-blue-100 text-blue-800';
-      default: return 'bg-yellow-100 text-yellow-800';
-    }
-  };
-
   const isOverdue = new Date(task.dueDate) < new Date() && task.status !== 'Completed';
 
   return (
@@ -1148,15 +853,13 @@ const TaskCard = ({ task, onEdit, onDelete, onUpdateStatus }) => {
         <div className="flex space-x-1">
           <button
             onClick={onEdit}
-            className="text-blue-600 hover:text-blue-800 p-1 rounded-full hover:bg-blue-50 transition-colors"
-            title="Edit task"
+            className="text-blue-600 hover:text-blue-800 p-1 rounded-full hover:bg-blue-50"
           >
             <Edit2 size={14} />
           </button>
           <button
             onClick={onDelete}
-            className="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-red-50 transition-colors"
-            title="Delete task"
+            className="text-red-600 hover:text-red-800 p-1 rounded-full hover:bg-red-50"
           >
             <Trash2 size={14} />
           </button>
@@ -1178,13 +881,16 @@ const TaskCard = ({ task, onEdit, onDelete, onUpdateStatus }) => {
           <span className="text-gray-500">Due date:</span>
           <span className={`font-medium ${isOverdue ? 'text-red-600' : 'text-gray-900'}`}>
             {task.dueDate}
-            {isOverdue && <span className="ml-1 text-xs">(Overdue)</span>}
           </span>
         </div>
       </div>
       
       <div className="flex items-center justify-between mb-4">
-        <span className={`px-2 py-1 rounded-full text-xs font-medium ${getTaskStatusColor(task.status)}`}>
+        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+          task.status === 'Completed' ? 'bg-green-100 text-green-800' :
+          task.status === 'In Progress' ? 'bg-blue-100 text-blue-800' :
+          'bg-yellow-100 text-yellow-800'
+        }`}>
           {task.status}
         </span>
         <span className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -1195,18 +901,6 @@ const TaskCard = ({ task, onEdit, onDelete, onUpdateStatus }) => {
           {task.priority}
         </span>
       </div>
-
-      {task.tags.length > 0 && (
-        <div className="mb-4">
-          <div className="flex flex-wrap gap-1">
-            {task.tags.map((tag, index) => (
-              <span key={index} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                {tag}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
 
       {/* Quick Status Update */}
       <div className="pt-3 border-t">
@@ -1225,7 +919,7 @@ const TaskCard = ({ task, onEdit, onDelete, onUpdateStatus }) => {
   );
 };
 
-// Email Module (unchanged)
+// Email Module
 const EmailModule = ({ emails }) => (
   <div className="space-y-6">
     <div className="bg-white rounded-lg shadow p-6">
@@ -1382,3 +1076,234 @@ const CustomerForm = ({ customer, onSubmit }) => {
         <textarea
           value={formData.address}
           onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          rows="2"
+          placeholder="Enter full address"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+          <select
+            value={formData.status}
+            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="Lead">Lead</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Order Value</label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={formData.orderValue}
+            onChange={(e) => setFormData({ ...formData, orderValue: e.target.value })}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="0.00"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+          <input
+            type="text"
+            placeholder="VIP, Enterprise"
+            value={formData.tags}
+            onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end space-x-3 pt-4 border-t">
+        <button
+          type="submit"
+          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+        >
+          <Save size={16} className="mr-2" />
+          {customer ? 'Update Customer' : 'Add Customer'}
+        </button>
+      </div>
+    </form>
+  );
+};
+
+// Task Form Component
+const TaskForm = ({ task, customers, staffMembers, onSubmit }) => {
+  const [formData, setFormData] = useState({
+    title: task?.title || '',
+    description: task?.description || '',
+    customerId: task?.customerId || '',
+    assignedTo: task?.assignedTo || '',
+    priority: task?.priority || 'Medium',
+    status: task?.status || 'Pending',
+    dueDate: task?.dueDate || '',
+    tags: task?.tags?.join(', ') || ''
+  });
+
+  const [errors, setErrors] = useState({});
+
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.title.trim()) newErrors.title = 'Title is required';
+    if (!formData.customerId) newErrors.customerId = 'Customer is required';
+    if (!formData.assignedTo) newErrors.assignedTo = 'Assignee is required';
+    if (!formData.dueDate) newErrors.dueDate = 'Due date is required';
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (validateForm()) {
+      onSubmit(formData);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <h3 className="text-lg font-semibold text-gray-900">
+        {task ? 'Edit Task' : 'Add New Task'}
+      </h3>
+      
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Title <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          value={formData.title}
+          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+          className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            errors.title ? 'border-red-500' : 'border-gray-300'
+          }`}
+          placeholder="Enter task title"
+        />
+        {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title}</p>}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+        <textarea
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          rows="3"
+          placeholder="Enter task description"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Customer <span className="text-red-500">*</span>
+          </label>
+          <select
+            value={formData.customerId}
+            onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
+            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.customerId ? 'border-red-500' : 'border-gray-300'
+            }`}
+          >
+            <option value="">Select Customer</option>
+            {customers.map(customer => (
+              <option key={customer.id} value={customer.id}>
+                {customer.name} - {customer.company}
+              </option>
+            ))}
+          </select>
+          {errors.customerId && <p className="text-red-500 text-xs mt-1">{errors.customerId}</p>}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Assign To <span className="text-red-500">*</span>
+          </label>
+          <select
+            value={formData.assignedTo}
+            onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
+            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.assignedTo ? 'border-red-500' : 'border-gray-300'
+            }`}
+          >
+            <option value="">Select Staff Member</option>
+            {staffMembers.map(staff => (
+              <option key={staff.id} value={staff.name}>
+                {staff.name} - {staff.role}
+              </option>
+            ))}
+          </select>
+          {errors.assignedTo && <p className="text-red-500 text-xs mt-1">{errors.assignedTo}</p>}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+          <select
+            value={formData.priority}
+            onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+          <select
+            value={formData.status}
+            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="Pending">Pending</option>
+            <option value="In Progress">In Progress</option>
+            <option value="Completed">Completed</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Due Date <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="date"
+            value={formData.dueDate}
+            onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.dueDate ? 'border-red-500' : 'border-gray-300'
+            }`}
+            min={new Date().toISOString().split('T')[0]}
+          />
+          {errors.dueDate && <p className="text-red-500 text-xs mt-1">{errors.dueDate}</p>}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+          <input
+            type="text"
+            placeholder="Sales, Follow-up"
+            value={formData.tags}
+            onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end space-x-3 pt-4 border-t">
+        <button
+          type="submit"
+          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
+        >
+          <Save size={16} className="mr-2" />
+          {task ? 'Update Task' : 'Create Task'}
+        </button>
+      </div>
+    </form>
+  );
+};
+
+export default CRM;
