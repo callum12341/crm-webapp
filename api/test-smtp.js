@@ -22,8 +22,45 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Dynamic import of nodemailer
-    const { default: nodemailer } = await import('nodemailer');
+    // Try multiple ways to import nodemailer
+    let createTransporter;
+    
+    try {
+      // Method 1: Standard dynamic import
+      const nodemailerModule = await import('nodemailer');
+      console.log('Nodemailer module:', Object.keys(nodemailerModule));
+      
+      if (nodemailerModule.createTransporter) {
+        createTransporter = nodemailerModule.createTransporter;
+      } else if (nodemailerModule.default && nodemailerModule.default.createTransporter) {
+        createTransporter = nodemailerModule.default.createTransporter;
+      } else if (nodemailerModule.default && typeof nodemailerModule.default === 'function') {
+        createTransporter = nodemailerModule.default;
+      } else {
+        // Try to find createTransporter in any property
+        for (const key of Object.keys(nodemailerModule)) {
+          if (nodemailerModule[key] && nodemailerModule[key].createTransporter) {
+            createTransporter = nodemailerModule[key].createTransporter;
+            break;
+          }
+        }
+      }
+    } catch (importError) {
+      console.error('Import error:', importError);
+      return res.status(500).json({
+        success: false,
+        message: 'Failed to import nodemailer',
+        details: importError.message
+      });
+    }
+
+    if (!createTransporter) {
+      return res.status(500).json({
+        success: false,
+        message: 'Could not find createTransporter function',
+        details: 'Nodemailer module structure is unexpected'
+      });
+    }
     
     const { config, testEmail } = req.body;
 
@@ -35,7 +72,7 @@ export default async function handler(req, res) {
     }
 
     // Create test transporter with provided config
-    const testTransporter = nodemailer.createTransporter({
+    const testTransporter = createTransporter({
       host: config.host,
       port: parseInt(config.port) || 587,
       secure: config.secure === true || config.secure === 'true',
@@ -66,38 +103,6 @@ export default async function handler(req, res) {
             <p style="margin: 0 0 15px 0; font-size: 16px;">
               Congratulations! Your SMTP configuration is working correctly and your CRM can now send emails.
             </p>
-          </div>
-
-          <div style="background: #f9fafb; border-radius: 8px; padding: 20px; margin: 20px 0;">
-            <h3 style="color: #374151; margin: 0 0 15px 0;">📧 Configuration Details:</h3>
-            <table style="width: 100%; border-collapse: collapse;">
-              <tr>
-                <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Host:</td>
-                <td style="padding: 8px 0; color: #374151;">${config.host}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Port:</td>
-                <td style="padding: 8px 0; color: #374151;">${config.port}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">Secure:</td>
-                <td style="padding: 8px 0; color: #374151;">${config.secure ? 'Yes' : 'No'}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 0; color: #6b7280; font-weight: bold;">User:</td>
-                <td style="padding: 8px 0; color: #374151;">${config.user}</td>
-              </tr>
-            </table>
-          </div>
-
-          <div style="background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 8px; padding: 20px; margin: 20px 0;">
-            <h3 style="color: #1e40af; margin: 0 0 10px 0;">🚀 What's Next?</h3>
-            <ul style="margin: 0; padding-left: 20px; color: #374151;">
-              <li>Your CRM is ready to send emails to customers</li>
-              <li>Use email templates for consistent messaging</li>
-              <li>Queue emails for batch sending</li>
-              <li>Track email delivery and responses</li>
-            </ul>
           </div>
 
           <div style="text-align: center; margin-top: 30px; padding-top: 20px; border-top: 1px solid #e5e7eb;">
