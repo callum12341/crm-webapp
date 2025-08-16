@@ -4,6 +4,7 @@ import {
   Search, Users, CheckSquare, Mail, Building, Settings, Menu, X, Eye, FileText,
   Plus, Edit2, Trash2, Save, User, Phone, Send, Paperclip, Clock, AlertCircle
 } from 'lucide-react';
+// ...existing code...
 
 // Sample data (existing data structure)
 const initialCustomers = [
