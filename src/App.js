@@ -1,10 +1,7 @@
-// src/App.js - Complete CRM WebApp with Fixed Import Order
+// src/App.js - Clean CRM WebApp with No Unused Imports
 import React, { useState, useMemo } from 'react';
 import { 
-  Search, Users, CheckSquare, Mail, Upload, Plus, Edit2, Trash2, 
-  Calendar, Clock, AlertCircle, User, Phone, MapPin, Building,
-  Send, Reply, Forward, Archive, Star, Filter, Download,
-  Settings, Bell, Menu, X, Eye, UserPlus, FileText, Tag
+  Search, Users, CheckSquare, Mail, Building, Settings, Menu, X, Eye, FileText
 } from 'lucide-react';
 
 // Sample data - in production this would come from your backend API
@@ -106,7 +103,7 @@ const initialEmails = [
     subject: 'Re: Enterprise Package Inquiry',
     from: 'john.smith@example.com',
     to: 'sales@company.com',
-    body: 'Hi, I\'m interested in learning more about your enterprise package. Could you provide more details about pricing and features? We\'re looking to implement a solution for our 500+ employee company.',
+    body: 'Hi, I\'m interested in learning more about your enterprise package. Could you provide more details about pricing and features?',
     timestamp: '2024-08-15 10:30:00',
     isRead: true,
     isStarred: false,
@@ -119,7 +116,7 @@ const initialEmails = [
     subject: 'Product Demo Request',
     from: 'sarah.j@techstart.com',
     to: 'info@company.com',
-    body: 'Hello, I would like to schedule a product demo for our team. We\'re evaluating solutions for our upcoming project and your platform looks promising.',
+    body: 'Hello, I would like to schedule a product demo for our team. We\'re evaluating solutions for our upcoming project.',
     timestamp: '2024-08-14 14:20:00',
     isRead: false,
     isStarred: true,
@@ -132,7 +129,7 @@ const initialEmails = [
     subject: 'Contract Terms Discussion',
     from: 'mchen@innovate.co',
     to: 'legal@company.com',
-    body: 'We need to discuss the contract terms for our enterprise agreement. Please schedule a call to review the specific requirements.',
+    body: 'We need to discuss the contract terms for our enterprise agreement. Please schedule a call to review requirements.',
     timestamp: '2024-08-16 09:15:00',
     isRead: false,
     isStarred: false,
@@ -140,32 +137,14 @@ const initialEmails = [
   }
 ];
 
-const staffMembers = [
-  { id: 1, name: 'Mike Wilson', email: 'mike@company.com', role: 'Sales Manager' },
-  { id: 2, name: 'Lisa Chen', email: 'lisa@company.com', role: 'Account Executive' },
-  { id: 3, name: 'David Brown', email: 'david@company.com', role: 'Support Lead' },
-  { id: 4, name: 'Emma Rodriguez', email: 'emma@company.com', role: 'Customer Success' }
-];
-
 const CRM = () => {
   const [activeModule, setActiveModule] = useState('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
-  const [customers, setCustomers] = useState(initialCustomers);
-  const [tasks, setTasks] = useState(initialTasks);
-  const [emails, setEmails] = useState(initialEmails);
+  const [customers] = useState(initialCustomers);
+  const [tasks] = useState(initialTasks);
+  const [emails] = useState(initialEmails);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [selectedTask, setSelectedTask] = useState(null);
-  const [selectedEmail, setSelectedEmail] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-  const [modalType, setModalType] = useState('');
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const [notification, setNotification] = useState(null);
-
-  // Show notification helper
-  const showNotification = (message, type = 'success') => {
-    setNotification({ message, type });
-    setTimeout(() => setNotification(null), 3000);
-  };
 
   // Global search functionality
   const searchResults = useMemo(() => {
@@ -196,122 +175,6 @@ const CRM = () => {
     return { customers: customerResults, tasks: taskResults, emails: emailResults };
   }, [searchQuery, customers, tasks, emails]);
 
-  // Modal handlers
-  const openModal = (type, data = null) => {
-    setModalType(type);
-    setShowModal(true);
-    if (type === 'edit-customer' && data) setSelectedCustomer(data);
-    if (type === 'edit-task' && data) setSelectedTask(data);
-  };
-
-  const closeModal = () => {
-    setShowModal(false);
-    setSelectedCustomer(null);
-    setSelectedTask(null);
-    setModalType('');
-  };
-
-  // Customer operations
-  const addCustomer = (customerData) => {
-    const newCustomer = {
-      ...customerData,
-      id: customers.length + 1,
-      created: new Date().toISOString().split('T')[0],
-      status: 'Lead',
-      lastContact: '',
-      source: 'Manual'
-    };
-    setCustomers([...customers, newCustomer]);
-    showNotification('Customer added successfully!');
-    closeModal();
-  };
-
-  const updateCustomer = (updatedData) => {
-    setCustomers(customers.map(c => 
-      c.id === selectedCustomer.id ? { ...c, ...updatedData } : c
-    ));
-    showNotification('Customer updated successfully!');
-    closeModal();
-  };
-
-  const deleteCustomer = (id) => {
-    if (window.confirm('Are you sure you want to delete this customer?')) {
-      setCustomers(customers.filter(c => c.id !== id));
-      showNotification('Customer deleted successfully!');
-    }
-  };
-
-  // Task operations
-  const addTask = (taskData) => {
-    const newTask = {
-      ...taskData,
-      id: tasks.length + 1,
-      created: new Date().toISOString().split('T')[0],
-      status: 'Pending'
-    };
-    setTasks([...tasks, newTask]);
-    showNotification(`Task assigned to ${taskData.assignedTo}!`);
-    closeModal();
-    
-    // Simulate email notification
-    console.log(`📧 Email notification sent to ${taskData.assignedToEmail} for new task: ${taskData.title}`);
-  };
-
-  const updateTask = (updatedData) => {
-    setTasks(tasks.map(t => 
-      t.id === selectedTask.id ? { ...t, ...updatedData } : t
-    ));
-    showNotification('Task updated successfully!');
-    closeModal();
-  };
-
-  const updateTaskStatus = (taskId, newStatus) => {
-    setTasks(tasks.map(t => 
-      t.id === taskId ? { ...t, status: newStatus } : t
-    ));
-    showNotification(`Task status updated to ${newStatus}!`);
-  };
-
-  // CSV Import handler
-  const handleCSVImport = (event) => {
-    const file = event.target.files[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        try {
-          const csv = e.target.result;
-          const lines = csv.split('\n').filter(line => line.trim());
-          
-          const newCustomers = lines.slice(1).map((line, index) => {
-            const values = line.split(',').map(v => v.trim().replace(/"/g, ''));
-            const customer = {
-              id: customers.length + index + 1,
-              name: values[0] || '',
-              email: values[1] || '',
-              phone: values[2] || '',
-              company: values[3] || '',
-              address: values[4] || '',
-              status: 'Lead',
-              source: 'CSV Import',
-              created: new Date().toISOString().split('T')[0],
-              lastContact: '',
-              orderValue: parseFloat(values[5]) || 0,
-              tags: values[6] ? values[6].split(';').map(tag => tag.trim()) : []
-            };
-            return customer;
-          }).filter(customer => customer.name && customer.email);
-          
-          setCustomers([...customers, ...newCustomers]);
-          showNotification(`Successfully imported ${newCustomers.length} customers!`);
-        } catch (error) {
-          showNotification('Error importing CSV file. Please check the format.', 'error');
-        }
-      };
-      reader.readAsText(file);
-      event.target.value = '';
-    }
-  };
-
   const sidebarItems = [
     { id: 'dashboard', label: 'Dashboard', icon: <Settings size={20} /> },
     { id: 'customers', label: 'Customers', icon: <Users size={20} /> },
@@ -321,15 +184,6 @@ const CRM = () => {
 
   return (
     <div className="flex h-screen bg-gray-50">
-      {/* Notification */}
-      {notification && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg ${
-          notification.type === 'success' ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-        }`}>
-          {notification.message}
-        </div>
-      )}
-
       {/* Sidebar */}
       <div className={`${sidebarOpen ? 'w-64' : 'w-16'} bg-white shadow-lg transition-all duration-300 ease-in-out flex-shrink-0`}>
         <div className="p-4 border-b">
@@ -429,58 +283,16 @@ const CRM = () => {
             <Dashboard customers={customers} tasks={tasks} emails={emails} />
           )}
           {!searchQuery && activeModule === 'customers' && (
-            <CustomersModule
-              customers={customers}
-              onAddCustomer={() => openModal('add-customer')}
-              onEditCustomer={(customer) => openModal('edit-customer', customer)}
-              onDeleteCustomer={deleteCustomer}
-              onImportCSV={handleCSVImport}
-              tasks={tasks}
-              emails={emails}
-              onSelectCustomer={setSelectedCustomer}
-              selectedCustomer={selectedCustomer}
-              onBackToList={() => setSelectedCustomer(null)}
-            />
+            <CustomersModule customers={customers} />
           )}
           {!searchQuery && activeModule === 'tasks' && (
-            <TasksModule
-              tasks={tasks}
-              customers={customers}
-              staffMembers={staffMembers}
-              onAddTask={() => openModal('add-task')}
-              onEditTask={(task) => openModal('edit-task', task)}
-              onUpdateTaskStatus={updateTaskStatus}
-            />
+            <TasksModule tasks={tasks} />
           )}
           {!searchQuery && activeModule === 'emails' && (
-            <EmailModule 
-              emails={emails} 
-              customers={customers}
-              onSelectEmail={setSelectedEmail}
-              selectedEmail={selectedEmail}
-              onBackToInbox={() => setSelectedEmail(null)}
-            />
+            <EmailModule emails={emails} />
           )}
         </main>
       </div>
-
-      {/* Modals */}
-      {showModal && (
-        <Modal onClose={closeModal}>
-          {modalType === 'add-customer' && (
-            <CustomerForm onSubmit={addCustomer} />
-          )}
-          {modalType === 'edit-customer' && selectedCustomer && (
-            <CustomerForm customer={selectedCustomer} onSubmit={updateCustomer} />
-          )}
-          {modalType === 'add-task' && (
-            <TaskForm customers={customers} staffMembers={staffMembers} onSubmit={addTask} />
-          )}
-          {modalType === 'edit-task' && selectedTask && (
-            <TaskForm task={selectedTask} customers={customers} staffMembers={staffMembers} onSubmit={updateTask} />
-          )}
-        </Modal>
-      )}
     </div>
   );
 };
@@ -535,10 +347,11 @@ const Dashboard = ({ customers, tasks, emails }) => {
         />
       </div>
 
+      {/* Welcome Section */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold mb-4">Welcome to Your CRM</h3>
+        <h3 className="text-lg font-semibold mb-4 text-gray-900">🎉 Welcome to Your CRM!</h3>
         <p className="text-gray-600 mb-4">
-          Your professional customer relationship management system is ready to use. 
+          Your professional customer relationship management system is now live and ready to use. 
           Start by exploring the different modules using the sidebar navigation.
         </p>
         
@@ -553,7 +366,7 @@ const Dashboard = ({ customers, tasks, emails }) => {
           </div>
         )}
         
-        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-4 gap-4">
           <div className="p-4 bg-blue-50 rounded-lg">
             <h5 className="font-medium text-blue-800 mb-2">📊 Dashboard</h5>
             <p className="text-sm text-blue-700">View analytics and key metrics</p>
@@ -566,6 +379,19 @@ const Dashboard = ({ customers, tasks, emails }) => {
             <h5 className="font-medium text-purple-800 mb-2">📋 Tasks</h5>
             <p className="text-sm text-purple-700">Track and assign work items</p>
           </div>
+          <div className="p-4 bg-orange-50 rounded-lg">
+            <h5 className="font-medium text-orange-800 mb-2">📧 Emails</h5>
+            <p className="text-sm text-orange-700">Manage email communications</p>
+          </div>
+        </div>
+
+        <div className="mt-6 p-4 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg border">
+          <h5 className="font-medium text-gray-800 mb-2">🚀 Getting Started</h5>
+          <ul className="text-sm text-gray-700 space-y-1">
+            <li>• Try the global search to find customers, tasks, or emails</li>
+            <li>• Navigate between modules using the sidebar</li>
+            <li>• This is your foundation - we can add more features step by step!</li>
+          </ul>
         </div>
       </div>
     </div>
@@ -632,17 +458,20 @@ const SearchResults = ({ results, onSelectCustomer, onClearSearch }) => {
       
       {results.customers.length > 0 && (
         <div className="mb-6">
-          <h4 className="font-medium text-gray-700 mb-3">Customers ({results.customers.length})</h4>
+          <h4 className="font-medium text-gray-700 mb-3 flex items-center">
+            <Users className="mr-2" size={16} />
+            Customers ({results.customers.length})
+          </h4>
           <div className="space-y-2">
             {results.customers.map(customer => (
-              <div key={customer.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50">
+              <div key={customer.id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-gray-50 transition-colors">
                 <div>
                   <p className="font-medium">{customer.name}</p>
                   <p className="text-sm text-gray-500">{customer.email} • {customer.company}</p>
                 </div>
                 <button
                   onClick={() => onSelectCustomer(customer)}
-                  className="text-blue-600 hover:text-blue-800"
+                  className="text-blue-600 hover:text-blue-800 p-2 rounded"
                 >
                   <Eye size={16} />
                 </button>
@@ -654,12 +483,25 @@ const SearchResults = ({ results, onSelectCustomer, onClearSearch }) => {
 
       {results.tasks.length > 0 && (
         <div className="mb-6">
-          <h4 className="font-medium text-gray-700 mb-3">Tasks ({results.tasks.length})</h4>
+          <h4 className="font-medium text-gray-700 mb-3 flex items-center">
+            <CheckSquare className="mr-2" size={16} />
+            Tasks ({results.tasks.length})
+          </h4>
           <div className="space-y-2">
             {results.tasks.map(task => (
-              <div key={task.id} className="p-3 border rounded-lg hover:bg-gray-50">
-                <p className="font-medium">{task.title}</p>
-                <p className="text-sm text-gray-500">{task.customerName} • Due: {task.dueDate}</p>
+              <div key={task.id} className="p-3 border rounded-lg hover:bg-gray-50 transition-colors">
+                <div className="flex items-center justify-between mb-2">
+                  <p className="font-medium">{task.title}</p>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                    task.priority === 'High' ? 'bg-red-100 text-red-800' :
+                    task.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                    'bg-green-100 text-green-800'
+                  }`}>
+                    {task.priority}
+                  </span>
+                </div>
+                <p className="text-sm text-gray-600 mb-2">{task.description}</p>
+                <p className="text-xs text-gray-500">{task.customerName} • Due: {task.dueDate}</p>
               </div>
             ))}
           </div>
@@ -668,12 +510,20 @@ const SearchResults = ({ results, onSelectCustomer, onClearSearch }) => {
 
       {results.emails.length > 0 && (
         <div>
-          <h4 className="font-medium text-gray-700 mb-3">Emails ({results.emails.length})</h4>
+          <h4 className="font-medium text-gray-700 mb-3 flex items-center">
+            <Mail className="mr-2" size={16} />
+            Emails ({results.emails.length})
+          </h4>
           <div className="space-y-2">
             {results.emails.map(email => (
-              <div key={email.id} className="p-3 border rounded-lg hover:bg-gray-50">
-                <p className="font-medium">{email.subject}</p>
-                <p className="text-sm text-gray-500">{email.customerName} • {email.timestamp}</p>
+              <div key={email.id} className="p-3 border rounded-lg hover:bg-gray-50 transition-colors">
+                <div className="flex items-start justify-between mb-2">
+                  <div className="flex-1">
+                    <p className="font-medium">{email.subject}</p>
+                    <p className="text-sm text-gray-500">{email.customerName} • {email.timestamp}</p>
+                  </div>
+                </div>
+                <p className="text-sm text-gray-600 truncate">{email.body}</p>
               </div>
             ))}
           </div>
@@ -683,50 +533,95 @@ const SearchResults = ({ results, onSelectCustomer, onClearSearch }) => {
   );
 };
 
-// Simplified Components for the basic version
-const CustomersModule = () => (
-  <div className="bg-white rounded-lg shadow p-6">
-    <h3 className="text-lg font-semibold mb-4">Customer Management</h3>
-    <p className="text-gray-600">Customer management features will be available here.</p>
-  </div>
-);
-
-const TasksModule = () => (
-  <div className="bg-white rounded-lg shadow p-6">
-    <h3 className="text-lg font-semibold mb-4">Task Management</h3>
-    <p className="text-gray-600">Task management features will be available here.</p>
-  </div>
-);
-
-const EmailModule = () => (
-  <div className="bg-white rounded-lg shadow p-6">
-    <h3 className="text-lg font-semibold mb-4">Email Management</h3>
-    <p className="text-gray-600">Email management features will be available here.</p>
-  </div>
-);
-
-const Modal = ({ children, onClose }) => (
-  <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-    <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
-      <div className="flex justify-end mb-4">
-        <button onClick={onClose}><X size={20} /></button>
+// Module Components
+const CustomersModule = ({ customers }) => (
+  <div className="space-y-6">
+    <div className="bg-white rounded-lg shadow p-6">
+      <h3 className="text-lg font-semibold mb-4">Customer Management</h3>
+      <p className="text-gray-600 mb-6">View and manage your customer database</p>
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {customers.map(customer => (
+          <div key={customer.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+            <h4 className="font-medium text-gray-900">{customer.name}</h4>
+            <p className="text-sm text-gray-600">{customer.company}</p>
+            <p className="text-sm text-gray-500">{customer.email}</p>
+            <div className="mt-2">
+              <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                customer.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'
+              }`}>
+                {customer.status}
+              </span>
+            </div>
+          </div>
+        ))}
       </div>
-      {children}
     </div>
   </div>
 );
 
-const CustomerForm = ({ onSubmit }) => (
-  <div>
-    <h3 className="text-lg font-semibold mb-4">Add Customer</h3>
-    <p className="text-gray-600">Customer form coming soon...</p>
+const TasksModule = ({ tasks }) => (
+  <div className="space-y-6">
+    <div className="bg-white rounded-lg shadow p-6">
+      <h3 className="text-lg font-semibold mb-4">Task Management</h3>
+      <p className="text-gray-600 mb-6">Track and manage your tasks</p>
+      
+      <div className="space-y-4">
+        {tasks.map(task => (
+          <div key={task.id} className="border rounded-lg p-4 hover:shadow-md transition-shadow">
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h4 className="font-medium text-gray-900">{task.title}</h4>
+                <p className="text-sm text-gray-600 mt-1">{task.description}</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  Customer: {task.customerName} • Assigned to: {task.assignedTo}
+                </p>
+              </div>
+              <div className="ml-4">
+                <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  task.priority === 'High' ? 'bg-red-100 text-red-800' :
+                  task.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                  'bg-green-100 text-green-800'
+                }`}>
+                  {task.priority}
+                </span>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   </div>
 );
 
-const TaskForm = ({ onSubmit }) => (
-  <div>
-    <h3 className="text-lg font-semibold mb-4">Add Task</h3>
-    <p className="text-gray-600">Task form coming soon...</p>
+const EmailModule = ({ emails }) => (
+  <div className="space-y-6">
+    <div className="bg-white rounded-lg shadow p-6">
+      <h3 className="text-lg font-semibold mb-4">Email Management</h3>
+      <p className="text-gray-600 mb-6">View and manage email communications</p>
+      
+      <div className="space-y-4">
+        {emails.map(email => (
+          <div key={email.id} className={`border rounded-lg p-4 hover:shadow-md transition-shadow ${
+            !email.isRead ? 'bg-blue-50 border-blue-200' : ''
+          }`}>
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h4 className="font-medium text-gray-900">{email.subject}</h4>
+                <p className="text-sm text-gray-600 mt-1">{email.customerName}</p>
+                <p className="text-sm text-gray-500 mt-2 line-clamp-2">{email.body}</p>
+              </div>
+              <div className="ml-4 text-right">
+                <p className="text-xs text-gray-500">{email.timestamp}</p>
+                {!email.isRead && (
+                  <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 ml-auto"></div>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
   </div>
 );
 
