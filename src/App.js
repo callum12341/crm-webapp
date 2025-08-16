@@ -1,269 +1,3 @@
-// Customer Detail View
-const CustomerDetail = ({ customer, onBack, onEdit, tasks, emails }) => {
-  const [activeTab, setActiveTab] = useState('overview');
-
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <button 
-          onClick={onBack} 
-          className="text-blue-600 hover:text-blue-800 flex items-center font-medium"
-        >
-          ← Back to Customers
-        </button>
-        <button
-          onClick={onEdit}
-          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center transition-colors"
-        >
-          <Edit2 size={16} className="mr-2" />
-          Edit Customer
-        </button>
-      </div>
-
-      <div className="bg-white rounded-lg shadow p-6">
-        <div className="flex items-start justify-between mb-6">
-          <div className="flex items-center space-x-4">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
-              <User className="text-blue-600" size={24} />
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold text-gray-900">{customer.name}</h2>
-              <p className="text-gray-600">{customer.company}</p>
-              <div className="flex space-x-2 mt-2">
-                {customer.tags.map((tag, index) => (
-                  <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                    {tag}
-                  </span>
-                ))}
-              </div>
-            </div>
-          </div>
-          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-            customer.status === 'Active' ? 'bg-green-100 text-green-800' : 
-            customer.status === 'Lead' ? 'bg-yellow-100 text-yellow-800' :
-            'bg-gray-100 text-gray-800'
-          }`}>
-            {customer.status}
-          </span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
-          <div className="flex items-center space-x-3">
-            <Mail className="text-gray-400" size={20} />
-            <div>
-              <p className="text-sm text-gray-500">Email</p>
-              <p className="text-gray-900">{customer.email}</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Phone className="text-gray-400" size={20} />
-            <div>
-              <p className="text-sm text-gray-500">Phone</p>
-              <p className="text-gray-900">{customer.phone || 'Not provided'}</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Building className="text-gray-400" size={20} />
-            <div>
-              <p className="text-sm text-gray-500">Order Value</p>
-              <p className="text-gray-900 font-semibold">${customer.orderValue.toLocaleString()}</p>
-            </div>
-          </div>
-          <div className="flex items-center space-x-3">
-            <Calendar className="text-gray-400" size={20} />
-            <div>
-              <p className="text-sm text-gray-500">Customer Since</p>
-              <p className="text-gray-900">{customer.created}</p>
-            </div>
-          </div>
-        </div>
-
-        {customer.address && (
-          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-            <div className="flex items-start space-x-3">
-              <MapPin className="text-gray-400 mt-1" size={16} />
-              <div>
-                <p className="text-sm text-gray-500">Address</p>
-                <p className="text-gray-900">{customer.address}</p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Tabs */}
-        <div className="border-b border-gray-200 mb-6">
-          <nav className="-mb-px flex space-x-8">
-            {[
-              { id: 'overview', label: 'Overview' },
-              { id: 'tasks', label: `Tasks (${tasks.length})` },
-              { id: 'emails', label: `Emails (${emails.length})` }
-            ].map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
-                  activeTab === tab.id
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </nav>
-        </div>
-
-        {/* Tab Content */}
-        {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div>
-              <h4 className="font-medium text-gray-900 mb-4">Customer Information</h4>
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm text-gray-500">Source</label>
-                  <p className="text-gray-900 font-medium">{customer.source}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-500">Created</label>
-                  <p className="text-gray-900">{customer.created}</p>
-                </div>
-                <div>
-                  <label className="text-sm text-gray-500">Last Contact</label>
-                  <p className="text-gray-900">{customer.lastContact || 'Never'}</p>
-                </div>
-              </div>
-            </div>
-            <div>
-              <h4 className="font-medium text-gray-900 mb-4">Activity Summary</h4>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <CheckSquare className="text-blue-600" size={20} />
-                    <span className="font-medium">Active Tasks</span>
-                  </div>
-                  <span className="text-blue-600 font-bold">{tasks.filter(t => t.status !== 'Completed').length}</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <Mail className="text-green-600" size={20} />
-                    <span className="font-medium">Email Threads</span>
-                  </div>
-                  <span className="text-green-600 font-bold">{emails.length}</span>
-                </div>
-                <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
-                  <div className="flex items-center space-x-3">
-                    <FileText className="text-purple-600" size={20} />
-                    <span className="font-medium">Total Value</span>
-                  </div>
-                  <span className="text-purple-600 font-bold">${customer.orderValue.toLocaleString()}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'tasks' && (
-          <div className="space-y-4">
-            {tasks.length === 0 ? (
-              <div className="text-center py-12">
-                <CheckSquare className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No tasks assigned</h3>
-                <p className="mt-1 text-sm text-gray-500">Tasks related to this customer will appear here</p>
-              </div>
-            ) : (
-              tasks.map(task => (
-                <TaskCard key={task.id} task={task} />
-              ))
-            )}
-          </div>
-        )}
-
-        {activeTab === 'emails' && (
-          <div className="space-y-4">
-            {emails.length === 0 ? (
-              <div className="text-center py-12">
-                <Mail className="mx-auto h-12 w-12 text-gray-400" />
-                <h3 className="mt-2 text-sm font-medium text-gray-900">No email correspondence</h3>
-                <p className="mt-1 text-sm text-gray-500">Email conversations with this customer will appear here</p>
-              </div>
-            ) : (
-              emails.map(email => (
-                <EmailCard key={email.id} email={email} />
-              ))
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
-// Task Card Component
-const TaskCard = ({ task }) => {
-  return (
-    <div className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
-      <div className="flex items-start justify-between mb-3">
-        <h5 className="font-medium text-gray-900">{task.title}</h5>
-        <div className="flex space-x-2">
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-            task.status === 'Completed' ? 'bg-green-100 text-green-800' :
-            task.status === 'In Progress' ? 'bg-blue-100 text-blue-800' :
-            'bg-yellow-100 text-yellow-800'
-          }`}>
-            {task.status}
-          </span>
-          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-            task.priority === 'High' ? 'bg-red-100 text-red-800' :
-            task.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-            'bg-green-100 text-green-800'
-          }`}>
-            {task.priority}
-          </span>
-        </div>
-      </div>
-      <p className="text-gray-600 text-sm mb-3">{task.description}</p>
-      <div className="flex items-center justify-between text-sm text-gray-500">
-        <div className="flex items-center space-x-4">
-          <span>Assigned to: <span className="font-medium">{task.assignedTo}</span></span>
-          <span>Due: <span className={`font-medium ${
-            new Date(task.dueDate) < new Date() ? 'text-red-600' : 'text-gray-900'
-          }`}>{task.dueDate}</span></span>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Email Card Component  
-const EmailCard = ({ email }) => {
-  return (
-    <div className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
-      <div className="flex items-start justify-between mb-3">
-        <div className="flex-1">
-          <div className="flex items-center space-x-2 mb-1">
-            <h5 className="font-medium text-gray-900">{email.subject}</h5>
-            {!email.isRead && <div className="w-2 h-2 bg-blue-600 rounded-full"></div>}
-            {email.isStarred && <Star className="text-yellow-500" size={16} />}
-          </div>
-          <p className="text-sm text-gray-500">From: {email.from}</p>
-        </div>
-        <span className="text-sm text-gray-500">{email.timestamp}</span>
-      </div>
-      <p className="text-gray-600 text-sm mb-3">{email.body}</p>
-      <div className="flex space-x-3">
-        <button className="text-blue-600 hover:text-blue-800 text-sm flex items-center transition-colors">
-          <Reply size={14} className="mr-1" />
-          Reply
-        </button>
-        <button className="text-blue-600 hover:text-blue-800 text-sm flex items-center transition-colors">
-          <Forward size={14} className="mr-1" />
-          Forward
-        </button>
-      </div>
-    </div>
-  );
-};
-
 // Tasks Module
 const TasksModule = ({ tasks, customers, staffMembers, onAddTask, onEditTask, onUpdateTaskStatus }) => {
   const [filterStatus, setFilterStatus] = useState('all');
@@ -393,7 +127,7 @@ const TasksModule = ({ tasks, customers, staffMembers, onAddTask, onEditTask, on
               </button>
             </div>
             
-            <p className="text-gray-600 text-sm mb-4 line-clamp-2">{task.description}</p>
+            <p className="text-gray-600 text-sm mb-4">{task.description}</p>
             
             <div className="space-y-3 mb-4">
               <div className="flex items-center justify-between text-sm">
@@ -636,7 +370,429 @@ const EmailDetail = ({ email, onBack, customer }) => {
             <Trash2 size={16} />
           </button>
         </div>
-      // src/App.js - CRM WebApp for Vercel Deployment
+      </div>
+
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="border-b pb-4 mb-6">
+          <div className="flex items-start justify-between mb-4">
+            <h2 className="text-xl font-semibold text-gray-900">{email.subject}</h2>
+            <div className="flex items-center space-x-2">
+              {email.isStarred && <Star className="text-yellow-500" size={16} />}
+              {!email.isRead && <div className="w-2 h-2 bg-blue-600 rounded-full"></div>}
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-gray-600">
+            <div>
+              <p><strong>From:</strong> {email.from}</p>
+              <p><strong>To:</strong> {email.to}</p>
+            </div>
+            <div>
+              <p><strong>Date:</strong> {email.timestamp}</p>
+              {customer && <p><strong>Customer:</strong> {customer.name} ({customer.company})</p>}
+            </div>
+          </div>
+        </div>
+
+        <div className="prose max-w-none mb-6">
+          <p className="text-gray-800 whitespace-pre-wrap leading-relaxed">{email.body}</p>
+        </div>
+
+        <div className="pt-4 border-t">
+          <div className="flex space-x-3 mb-4">
+            <button
+              onClick={() => setShowReply(!showReply)}
+              className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center transition-colors"
+            >
+              <Reply size={16} className="mr-2" />
+              Reply
+            </button>
+            <button className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 flex items-center transition-colors">
+              <Forward size={16} className="mr-2" />
+              Forward
+            </button>
+            <button className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 flex items-center transition-colors">
+              <Archive size={16} className="mr-2" />
+              Archive
+            </button>
+          </div>
+
+          {showReply && (
+            <div className="p-4 border rounded-lg bg-gray-50">
+              <h4 className="font-medium text-gray-900 mb-3">Reply to {email.from}</h4>
+              <textarea
+                value={replyText}
+                onChange={(e) => setReplyText(e.target.value)}
+                placeholder="Type your reply..."
+                className="w-full h-32 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+              />
+              <div className="mt-3 flex space-x-2">
+                <button
+                  onClick={handleReply}
+                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center transition-colors"
+                >
+                  <Send size={16} className="mr-2" />
+                  Send Reply
+                </button>
+                <button
+                  onClick={() => setShowReply(false)}
+                  className="border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition-colors"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Modal Component
+const Modal = ({ children, onClose }) => {
+  return (
+    <div className="fixed inset-0 z-50 overflow-y-auto">
+      <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+        <div className="fixed inset-0 transition-opacity" aria-hidden="true">
+          <div className="absolute inset-0 bg-gray-500 opacity-75" onClick={onClose}></div>
+        </div>
+        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
+          <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+            <div className="flex justify-end mb-4">
+              <button 
+                onClick={onClose} 
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            {children}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Customer Form Component
+const CustomerForm = ({ customer, onSubmit }) => {
+  const [formData, setFormData] = useState({
+    name: customer?.name || '',
+    email: customer?.email || '',
+    phone: customer?.phone || '',
+    company: customer?.company || '',
+    address: customer?.address || '',
+    orderValue: customer?.orderValue || 0,
+    tags: customer?.tags?.join(', ') || ''
+  });
+
+  const [errors, setErrors] = useState({});
+
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.name.trim()) newErrors.name = 'Name is required';
+    if (!formData.email.trim()) newErrors.email = 'Email is required';
+    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email is invalid';
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (validateForm()) {
+      onSubmit({
+        ...formData,
+        orderValue: parseFloat(formData.orderValue) || 0,
+        tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
+      });
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <h3 className="text-lg font-semibold text-gray-900">
+        {customer ? 'Edit Customer' : 'Add New Customer'}
+      </h3>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Name <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="text"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.name ? 'border-red-500' : 'border-gray-300'
+            }`}
+            placeholder="Enter customer name"
+          />
+          {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Email <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="email"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.email ? 'border-red-500' : 'border-gray-300'
+            }`}
+            placeholder="Enter email address"
+          />
+          {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+          <input
+            type="tel"
+            value={formData.phone}
+            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Enter phone number"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
+          <input
+            type="text"
+            value={formData.company}
+            onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="Enter company name"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+        <textarea
+          value={formData.address}
+          onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          rows="2"
+          placeholder="Enter full address"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Order Value</label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={formData.orderValue}
+            onChange={(e) => setFormData({ ...formData, orderValue: e.target.value })}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            placeholder="0.00"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+          <input
+            type="text"
+            placeholder="VIP, Enterprise, Hot Lead"
+            value={formData.tags}
+            onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <p className="text-xs text-gray-500 mt-1">Separate tags with commas</p>
+        </div>
+      </div>
+
+      <div className="flex justify-end space-x-3 pt-4 border-t">
+        <button
+          type="submit"
+          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          {customer ? 'Update Customer' : 'Add Customer'}
+        </button>
+      </div>
+    </form>
+  );
+};
+
+// Task Form Component
+const TaskForm = ({ task, customers, staffMembers, onSubmit }) => {
+  const [formData, setFormData] = useState({
+    title: task?.title || '',
+    description: task?.description || '',
+    customerId: task?.customerId || '',
+    assignedTo: task?.assignedTo || '',
+    assignedToEmail: task?.assignedToEmail || '',
+    priority: task?.priority || 'Medium',
+    dueDate: task?.dueDate || '',
+    tags: task?.tags?.join(', ') || ''
+  });
+
+  const [errors, setErrors] = useState({});
+
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.title.trim()) newErrors.title = 'Title is required';
+    if (!formData.customerId) newErrors.customerId = 'Customer is required';
+    if (!formData.assignedTo) newErrors.assignedTo = 'Assignee is required';
+    if (!formData.dueDate) newErrors.dueDate = 'Due date is required';
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (validateForm()) {
+      const selectedStaff = staffMembers.find(s => s.name === formData.assignedTo);
+      const selectedCustomer = customers.find(c => c.id === parseInt(formData.customerId));
+      
+      onSubmit({
+        ...formData,
+        customerId: parseInt(formData.customerId),
+        customerName: selectedCustomer?.name || '',
+        assignedToEmail: selectedStaff?.email || '',
+        tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
+      });
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-6">
+      <h3 className="text-lg font-semibold text-gray-900">
+        {task ? 'Edit Task' : 'Add New Task'}
+      </h3>
+      
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">
+          Title <span className="text-red-500">*</span>
+        </label>
+        <input
+          type="text"
+          value={formData.title}
+          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+          className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            errors.title ? 'border-red-500' : 'border-gray-300'
+          }`}
+          placeholder="Enter task title"
+        />
+        {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title}</p>}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+        <textarea
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          rows="3"
+          placeholder="Enter task description"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Customer <span className="text-red-500">*</span>
+          </label>
+          <select
+            value={formData.customerId}
+            onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
+            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.customerId ? 'border-red-500' : 'border-gray-300'
+            }`}
+          >
+            <option value="">Select Customer</option>
+            {customers.map(customer => (
+              <option key={customer.id} value={customer.id}>
+                {customer.name} - {customer.company}
+              </option>
+            ))}
+          </select>
+          {errors.customerId && <p className="text-red-500 text-xs mt-1">{errors.customerId}</p>}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Assign To <span className="text-red-500">*</span>
+          </label>
+          <select
+            value={formData.assignedTo}
+            onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
+            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.assignedTo ? 'border-red-500' : 'border-gray-300'
+            }`}
+          >
+            <option value="">Select Staff Member</option>
+            {staffMembers.map(staff => (
+              <option key={staff.id} value={staff.name}>
+                {staff.name} - {staff.role}
+              </option>
+            ))}
+          </select>
+          {errors.assignedTo && <p className="text-red-500 text-xs mt-1">{errors.assignedTo}</p>}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Priority <span className="text-red-500">*</span>
+          </label>
+          <select
+            value={formData.priority}
+            onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">
+            Due Date <span className="text-red-500">*</span>
+          </label>
+          <input
+            type="date"
+            value={formData.dueDate}
+            onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.dueDate ? 'border-red-500' : 'border-gray-300'
+            }`}
+            min={new Date().toISOString().split('T')[0]}
+          />
+          {errors.dueDate && <p className="text-red-500 text-xs mt-1">{errors.dueDate}</p>}
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
+          <input
+            type="text"
+            placeholder="Sales, Follow-up"
+            value={formData.tags}
+            onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+      </div>
+
+      <div className="flex justify-end space-x-3 pt-4 border-t">
+        <button
+          type="submit"
+          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+        >
+          {task ? 'Update Task' : 'Create Task'}
+        </button>
+      </div>
+    </form>
+  );
+};
+
+export default CRM;// src/App.js - Complete CRM WebApp
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Search, Users, CheckSquare, Mail, Upload, Plus, Edit2, Trash2, 
@@ -1190,7 +1346,7 @@ const Dashboard = ({ customers, tasks, emails }) => {
         />
         <DashboardCard 
           title="Total Revenue" 
-          value={`${stats.totalRevenue.toLocaleString()}`} 
+          value={`$${stats.totalRevenue.toLocaleString()}`} 
           icon={<FileText />} 
           color="purple"
           change="+15% from last month"
@@ -1746,3 +1902,275 @@ const CustomerTable = ({ customers, onSelect, onEdit, onDelete }) => {
     </div>
   );
 };
+
+// Customer Detail View
+const CustomerDetail = ({ customer, onBack, onEdit, tasks, emails }) => {
+  const [activeTab, setActiveTab] = useState('overview');
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <button 
+          onClick={onBack} 
+          className="text-blue-600 hover:text-blue-800 flex items-center font-medium"
+        >
+          ← Back to Customers
+        </button>
+        <button
+          onClick={onEdit}
+          className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center transition-colors"
+        >
+          <Edit2 size={16} className="mr-2" />
+          Edit Customer
+        </button>
+      </div>
+
+      <div className="bg-white rounded-lg shadow p-6">
+        <div className="flex items-start justify-between mb-6">
+          <div className="flex items-center space-x-4">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center">
+              <User className="text-blue-600" size={24} />
+            </div>
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">{customer.name}</h2>
+              <p className="text-gray-600">{customer.company}</p>
+              <div className="flex space-x-2 mt-2">
+                {customer.tags.map((tag, index) => (
+                  <span key={index} className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                    {tag}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+          <span className={`px-3 py-1 rounded-full text-sm font-medium ${
+            customer.status === 'Active' ? 'bg-green-100 text-green-800' : 
+            customer.status === 'Lead' ? 'bg-yellow-100 text-yellow-800' :
+            'bg-gray-100 text-gray-800'
+          }`}>
+            {customer.status}
+          </span>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+          <div className="flex items-center space-x-3">
+            <Mail className="text-gray-400" size={20} />
+            <div>
+              <p className="text-sm text-gray-500">Email</p>
+              <p className="text-gray-900">{customer.email}</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <Phone className="text-gray-400" size={20} />
+            <div>
+              <p className="text-sm text-gray-500">Phone</p>
+              <p className="text-gray-900">{customer.phone || 'Not provided'}</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <Building className="text-gray-400" size={20} />
+            <div>
+              <p className="text-sm text-gray-500">Order Value</p>
+              <p className="text-gray-900 font-semibold">${customer.orderValue.toLocaleString()}</p>
+            </div>
+          </div>
+          <div className="flex items-center space-x-3">
+            <Calendar className="text-gray-400" size={20} />
+            <div>
+              <p className="text-sm text-gray-500">Customer Since</p>
+              <p className="text-gray-900">{customer.created}</p>
+            </div>
+          </div>
+        </div>
+
+        {customer.address && (
+          <div className="mb-6 p-4 bg-gray-50 rounded-lg">
+            <div className="flex items-start space-x-3">
+              <MapPin className="text-gray-400 mt-1" size={16} />
+              <div>
+                <p className="text-sm text-gray-500">Address</p>
+                <p className="text-gray-900">{customer.address}</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Tabs */}
+        <div className="border-b border-gray-200 mb-6">
+          <nav className="-mb-px flex space-x-8">
+            {[
+              { id: 'overview', label: 'Overview' },
+              { id: 'tasks', label: `Tasks (${tasks.length})` },
+              { id: 'emails', label: `Emails (${emails.length})` }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`py-2 px-1 border-b-2 font-medium text-sm transition-colors ${
+                  activeTab === tab.id
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        {/* Tab Content */}
+        {activeTab === 'overview' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div>
+              <h4 className="font-medium text-gray-900 mb-4">Customer Information</h4>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm text-gray-500">Source</label>
+                  <p className="text-gray-900 font-medium">{customer.source}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-500">Created</label>
+                  <p className="text-gray-900">{customer.created}</p>
+                </div>
+                <div>
+                  <label className="text-sm text-gray-500">Last Contact</label>
+                  <p className="text-gray-900">{customer.lastContact || 'Never'}</p>
+                </div>
+              </div>
+            </div>
+            <div>
+              <h4 className="font-medium text-gray-900 mb-4">Activity Summary</h4>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 bg-blue-50 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <CheckSquare className="text-blue-600" size={20} />
+                    <span className="font-medium">Active Tasks</span>
+                  </div>
+                  <span className="text-blue-600 font-bold">{tasks.filter(t => t.status !== 'Completed').length}</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <Mail className="text-green-600" size={20} />
+                    <span className="font-medium">Email Threads</span>
+                  </div>
+                  <span className="text-green-600 font-bold">{emails.length}</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+                  <div className="flex items-center space-x-3">
+                    <FileText className="text-purple-600" size={20} />
+                    <span className="font-medium">Total Value</span>
+                  </div>
+                  <span className="text-purple-600 font-bold">${customer.orderValue.toLocaleString()}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'tasks' && (
+          <div className="space-y-4">
+            {tasks.length === 0 ? (
+              <div className="text-center py-12">
+                <CheckSquare className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No tasks assigned</h3>
+                <p className="mt-1 text-sm text-gray-500">Tasks related to this customer will appear here</p>
+              </div>
+            ) : (
+              tasks.map(task => (
+                <TaskCard key={task.id} task={task} />
+              ))
+            )}
+          </div>
+        )}
+
+        {activeTab === 'emails' && (
+          <div className="space-y-4">
+            {emails.length === 0 ? (
+              <div className="text-center py-12">
+                <Mail className="mx-auto h-12 w-12 text-gray-400" />
+                <h3 className="mt-2 text-sm font-medium text-gray-900">No email correspondence</h3>
+                <p className="mt-1 text-sm text-gray-500">Email conversations with this customer will appear here</p>
+              </div>
+            ) : (
+              emails.map(email => (
+                <EmailCard key={email.id} email={email} />
+              ))
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Task Card Component
+const TaskCard = ({ task }) => {
+  return (
+    <div className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
+      <div className="flex items-start justify-between mb-3">
+        <h5 className="font-medium text-gray-900">{task.title}</h5>
+        <div className="flex space-x-2">
+          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+            task.status === 'Completed' ? 'bg-green-100 text-green-800' :
+            task.status === 'In Progress' ? 'bg-blue-100 text-blue-800' :
+            'bg-yellow-100 text-yellow-800'
+          }`}>
+            {task.status}
+          </span>
+          <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+            task.priority === 'High' ? 'bg-red-100 text-red-800' :
+            task.priority === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+            'bg-green-100 text-green-800'
+          }`}>
+            {task.priority}
+          </span>
+        </div>
+      </div>
+      <p className="text-gray-600 text-sm mb-3">{task.description}</p>
+      <div className="flex items-center justify-between text-sm text-gray-500">
+        <div className="flex items-center space-x-4">
+          <span>Assigned to: <span className="font-medium">{task.assignedTo}</span></span>
+          <span>Due: <span className={`font-medium ${
+            new Date(task.dueDate) < new Date() ? 'text-red-600' : 'text-gray-900'
+          }`}>{task.dueDate}</span></span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Email Card Component  
+const EmailCard = ({ email }) => {
+  return (
+    <div className="border rounded-lg p-4 hover:shadow-sm transition-shadow">
+      <div className="flex items-start justify-between mb-3">
+        <div className="flex-1">
+          <div className="flex items-center space-x-2 mb-1">
+            <h5 className="font-medium text-gray-900">{email.subject}</h5>
+            {!email.isRead && <div className="w-2 h-2 bg-blue-600 rounded-full"></div>}
+            {email.isStarred && <Star className="text-yellow-500" size={16} />}
+          </div>
+          <p className="text-sm text-gray-500">From: {email.from}</p>
+        </div>
+        <span className="text-sm text-gray-500">{email.timestamp}</span>
+      </div>
+      <p className="text-gray-600 text-sm mb-3">{email.body}</p>
+      <div className="flex space-x-3">
+        <button className="text-blue-600 hover:text-blue-800 text-sm flex items-center transition-colors">
+          <Reply size={14} className="mr-1" />
+          Reply
+        </button>
+        <button className="text-blue-600 hover:text-blue-800 text-sm flex items-center transition-colors">
+          <Forward size={14} className="mr-1" />
+          Forward
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Additional components continue...
+// (TasksModule, EmailModule, Modal, CustomerForm, TaskForm)
+// I'll add these in the next part to avoid hitting length limits
+
+// For now, let's add the essential missing components:
