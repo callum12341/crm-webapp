@@ -1,4 +1,5 @@
-import nodemailer from 'nodemailer';
+// Use require instead of import for nodemailer in Vercel
+const nodemailer = require('nodemailer');
 
 // Configure CORS headers
 const corsHeaders = {
@@ -138,4 +139,4 @@ async function handler(req, res) {
   }
 }
 
-export default handler;
+module.exports = handler;
