@@ -1,4 +1,4 @@
-// src/App.js - CRM WebApp with SMTP Email Functionality
+// src/App.js - CRM WebApp with SMTP Email Functionality - FIXED VERSION
 import React, { useState, useMemo } from 'react';
 import { 
   Search, Users, CheckSquare, Mail, Building, Settings, Menu, X, Eye, FileText,
@@ -165,13 +165,13 @@ const staffMembers = [
   { id: 3, name: 'David Brown', email: 'david@company.com', role: 'Support Lead' }
 ];
 
-// SMTP Configuration (would be stored securely in backend)
-const smtpConfig = {
-  host: 'smtp.gmail.com',
+// SMTP Configuration state
+const defaultSmtpConfig = {
+  host: '',
   port: 587,
   secure: false,
-  user: 'your-email@company.com',
-  configured: false // Flag to show if SMTP is set up
+  user: '',
+  configured: false
 };
 
 const CRM = () => {
@@ -185,6 +185,7 @@ const CRM = () => {
   const [modalType, setModalType] = useState('');
   const [selectedItem, setSelectedItem] = useState(null);
   const [notification, setNotification] = useState(null);
+  const [smtpConfig, setSmtpConfig] = useState(defaultSmtpConfig);
 
   // Email sending state
   const [emailQueue, setEmailQueue] = useState([]);
@@ -210,112 +211,123 @@ const CRM = () => {
 
   // SMTP Email functionality
   const sendEmail = async (emailData) => {
-  try {
-    const response = await fetch('/api/send-email', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(emailData)
-    });
-
-    const result = await response.json();
-
-    if (result.success) {
-      // Add sent email to emails list
-      const newEmail = {
-        id: Math.max(...emails.map(e => e.id), 0) + 1,
-        customerId: emailData.customerId,
-        customerName: emailData.customerName,
-        subject: emailData.subject,
-        from: emailData.from,
-        to: emailData.to,
-        cc: emailData.cc,
-        bcc: emailData.bcc,
-        body: emailData.body,
-        timestamp: new Date().toLocaleString(),
-        isRead: true,
-        isStarred: false,
-        thread: `thread_${Date.now()}`,
-        type: 'outgoing',
-        status: 'sent',
-        smtpMessageId: result.messageId,
-        attachments: emailData.attachments || []
-      };
-
-      setEmails([newEmail, ...emails]);
-      showNotification('Email sent successfully!', 'success');
-      return true;
-    } else {
-      throw new Error(result.message);
-    }
-  } catch (error) {
-    console.error('Email send error:', error);
-    showNotification('Failed to send email: ' + error.message, 'error');
-    return false;
-  }
-};
-
-// Update processEmailQueue function
-const processEmailQueue = async () => {
-  if (emailQueue.length === 0) {
-    showNotification('No emails in queue', 'info');
-    return;
-  }
-
-  showNotification(`Processing ${emailQueue.length} queued emails...`, 'info');
-  
-  try {
-    const response = await fetch('/api/bulk-email', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ emails: emailQueue })
-    });
-
-    const result = await response.json();
-
-    if (result.success) {
-      // Process results and update UI
-      result.results.forEach((emailResult, index) => {
-        if (emailResult.success) {
-          const originalEmail = emailQueue[index];
-          const newEmail = {
-            id: Math.max(...emails.map(e => e.id), 0) + index + 1,
-            ...originalEmail,
-            timestamp: new Date().toLocaleString(),
-            isRead: true,
-            isStarred: false,
-            thread: `thread_${Date.now()}_${index}`,
-            type: 'outgoing',
-            status: 'sent',
-            smtpMessageId: emailResult.messageId
-          };
-          setEmails(prev => [newEmail, ...prev]);
-        }
+    try {
+      const response = await fetch('/api/send-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(emailData)
       });
 
-      // Clear successful emails from queue
-      const failedEmails = emailQueue.filter((_, index) => 
-        !result.results[index].success
-      );
-      setEmailQueue(failedEmails);
+      const result = await response.json();
 
-      showNotification(
-        `${result.successful} emails sent successfully, ${result.failed} failed`,
-        result.failed > 0 ? 'warning' : 'success'
-      );
-    } else {
-      throw new Error(result.message);
+      if (result.success) {
+        // Add sent email to emails list
+        const newEmail = {
+          id: Math.max(...emails.map(e => e.id), 0) + 1,
+          customerId: emailData.customerId,
+          customerName: emailData.customerName,
+          subject: emailData.subject,
+          from: emailData.from,
+          to: emailData.to,
+          cc: emailData.cc,
+          bcc: emailData.bcc,
+          body: emailData.body,
+          timestamp: new Date().toLocaleString(),
+          isRead: true,
+          isStarred: false,
+          thread: `thread_${Date.now()}`,
+          type: 'outgoing',
+          status: 'sent',
+          smtpMessageId: result.messageId,
+          attachments: emailData.attachments || []
+        };
+
+        setEmails([newEmail, ...emails]);
+        showNotification('Email sent successfully!', 'success');
+        return true;
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error) {
+      console.error('Email send error:', error);
+      showNotification('Failed to send email: ' + error.message, 'error');
+      return false;
     }
-  } catch (error) {
-    console.error('Bulk email error:', error);
-    showNotification('Failed to process email queue: ' + error.message, 'error');
-  }
-};
+  };
 
-  // Customer CRUD operations (existing code)
+  // Queue email function
+  const queueEmail = (emailData) => {
+    const queuedEmail = {
+      ...emailData,
+      id: Math.max(...emailQueue.map(e => e.id || 0), 0) + 1,
+      queuedAt: new Date().toISOString()
+    };
+    setEmailQueue([...emailQueue, queuedEmail]);
+    showNotification('Email added to queue!', 'info');
+  };
+
+  // Process email queue function
+  const processEmailQueue = async () => {
+    if (emailQueue.length === 0) {
+      showNotification('No emails in queue', 'info');
+      return;
+    }
+
+    showNotification(`Processing ${emailQueue.length} queued emails...`, 'info');
+    
+    try {
+      const response = await fetch('/api/bulk-email', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ emails: emailQueue })
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        // Process results and update UI
+        result.results.forEach((emailResult, index) => {
+          if (emailResult.success) {
+            const originalEmail = emailQueue[index];
+            const newEmail = {
+              id: Math.max(...emails.map(e => e.id), 0) + index + 1,
+              ...originalEmail,
+              timestamp: new Date().toLocaleString(),
+              isRead: true,
+              isStarred: false,
+              thread: `thread_${Date.now()}_${index}`,
+              type: 'outgoing',
+              status: 'sent',
+              smtpMessageId: emailResult.messageId
+            };
+            setEmails(prev => [newEmail, ...prev]);
+          }
+        });
+
+        // Clear successful emails from queue
+        const failedEmails = emailQueue.filter((_, index) => 
+          !result.results[index].success
+        );
+        setEmailQueue(failedEmails);
+
+        showNotification(
+          `${result.summary.successful} emails sent successfully, ${result.summary.failed} failed`,
+          result.summary.failed > 0 ? 'warning' : 'success'
+        );
+      } else {
+        throw new Error(result.message);
+      }
+    } catch (error) {
+      console.error('Bulk email error:', error);
+      showNotification('Failed to process email queue: ' + error.message, 'error');
+    }
+  };
+
+  // Customer CRUD operations
   const addCustomer = (customerData) => {
     const newCustomer = {
       ...customerData,
@@ -353,7 +365,7 @@ const processEmailQueue = async () => {
     }
   };
 
-  // Task CRUD operations (existing code)
+  // Task CRUD operations
   const addTask = (taskData) => {
     const selectedCustomer = customers.find(c => c.id === parseInt(taskData.customerId));
     const selectedStaff = staffMembers.find(s => s.name === taskData.assignedTo);
@@ -407,7 +419,7 @@ const processEmailQueue = async () => {
     showNotification(`Task "${task.title}" marked as ${newStatus}!`);
   };
 
-  // Global search functionality (existing code)
+  // Global search functionality
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return { customers: [], tasks: [], emails: [] };
     
@@ -450,7 +462,8 @@ const processEmailQueue = async () => {
       {notification && (
         <div className={`fixed top-4 right-4 z-50 p-4 rounded-lg shadow-lg transition-all duration-300 ${
           notification.type === 'success' ? 'bg-green-500 text-white' : 
-          notification.type === 'info' ? 'bg-blue-500 text-white' : 'bg-red-500 text-white'
+          notification.type === 'info' ? 'bg-blue-500 text-white' : 
+          notification.type === 'warning' ? 'bg-yellow-500 text-white' : 'bg-red-500 text-white'
         }`}>
           {notification.message}
         </div>
@@ -515,8 +528,15 @@ const processEmailQueue = async () => {
               </div>
             )}
             <div className="bg-green-50 rounded-lg p-3">
-              <p className="text-xs text-green-800 font-medium">📧 SMTP Enabled!</p>
-              <p className="text-xs text-green-600 mt-1">Send emails directly!</p>
+              <p className="text-xs text-green-800 font-medium">📧 SMTP Ready!</p>
+              <p className="text-xs text-green-600 mt-1">
+                <button
+                  onClick={() => openModal('smtp-config')}
+                  className="underline hover:text-green-800"
+                >
+                  Configure SMTP
+                </button>
+              </p>
             </div>
           </div>
         )}
@@ -656,7 +676,7 @@ const processEmailQueue = async () => {
             <SMTPConfigForm
               config={smtpConfig}
               onSave={(config) => {
-                // In a real app, this would save to backend
+                setSmtpConfig({ ...config, configured: true });
                 showNotification('SMTP configuration saved!');
                 closeModal();
               }}
@@ -668,7 +688,7 @@ const processEmailQueue = async () => {
   );
 };
 
-// Enhanced Dashboard Component
+// Dashboard Component
 const Dashboard = ({ customers, tasks, emails }) => {
   const stats = {
     totalCustomers: customers.length,
@@ -677,7 +697,7 @@ const Dashboard = ({ customers, tasks, emails }) => {
     unreadEmails: emails.filter(e => !e.isRead).length,
     totalRevenue: customers.reduce((sum, c) => sum + c.orderValue, 0),
     sentEmails: emails.filter(e => e.type === 'outgoing').length,
-    emailResponseRate: 75 // Would be calculated from actual data
+    emailResponseRate: 75
   };
 
   const recentEmails = emails.slice(0, 5);
@@ -795,7 +815,7 @@ const DashboardCard = ({ title, value, icon, color }) => {
   );
 };
 
-// Search Results Component (unchanged)
+// Search Results Component
 const SearchResults = ({ results, onClearSearch }) => {
   const totalResults = results.customers.length + results.tasks.length + results.emails.length;
 
@@ -877,7 +897,7 @@ const SearchResults = ({ results, onClearSearch }) => {
   );
 };
 
-// Enhanced Customers Module with Email Integration
+// Customers Module
 const CustomersModule = ({ customers, onAdd, onEdit, onDelete, onSendEmail }) => {
   return (
     <div className="space-y-6">
@@ -927,7 +947,7 @@ const CustomersModule = ({ customers, onAdd, onEdit, onDelete, onSendEmail }) =>
   );
 };
 
-// Enhanced Customer Card with Email Button
+// Customer Card Component
 const CustomerCard = ({ customer, onEdit, onDelete, onSendEmail }) => {
   return (
     <div className="bg-white rounded-lg shadow p-6 hover:shadow-lg transition-shadow">
@@ -995,7 +1015,7 @@ const CustomerCard = ({ customer, onEdit, onDelete, onSendEmail }) => {
   );
 };
 
-// Tasks Module (unchanged from previous version)
+// Tasks Module
 const TasksModule = ({ tasks, customers, staffMembers, onAdd, onEdit, onDelete, onUpdateStatus }) => {
   const [filterStatus, setFilterStatus] = useState('all');
   const [filterPriority, setFilterPriority] = useState('all');
@@ -1113,7 +1133,7 @@ const TasksModule = ({ tasks, customers, staffMembers, onAdd, onEdit, onDelete, 
   );
 };
 
-// Task Card Component (unchanged)
+// Task Card Component
 const TaskCard = ({ task, onEdit, onDelete, onUpdateStatus }) => {
   const isOverdue = new Date(task.dueDate) < new Date() && task.status !== 'Completed';
 
@@ -1191,7 +1211,7 @@ const TaskCard = ({ task, onEdit, onDelete, onUpdateStatus }) => {
   );
 };
 
-// Enhanced Email Module
+// Email Module
 const EmailModule = ({ emails, customers, onCompose, onReply }) => {
   const [filterType, setFilterType] = useState('all');
   const [filterStatus, setFilterStatus] = useState('all');
@@ -1361,7 +1381,7 @@ const EmailCard = ({ email, onReply }) => {
   );
 };
 
-// New Compose Email Module
+// Compose Email Module
 const ComposeEmailModule = ({ customers, templates, onSend, onQueue, staffMembers }) => {
   return (
     <div className="bg-white rounded-lg shadow p-6">
@@ -1436,757 +1456,18 @@ const ComposeEmailForm = ({
     setShowTemplates(false);
   };
 
-  const handleSend = async (e) => {
-    e.preventDefault();
-    if (validateForm()) {
-      const emailData = {
-        ...formData,
-        customerId: parseInt(formData.customerId) || null,
-        customerName: formData.customerName || customers.find(c => c.email === formData.to)?.name || ''
-      };
-      
-      const success = await onSend(emailData);
-      if (success && onClose) {
-        onClose();
-      }
-    }
-  };
-
-  const handleQueue = () => {
-    if (validateForm()) {
-      const emailData = {
-        ...formData,
-        customerId: parseInt(formData.customerId) || null,
-        customerName: formData.customerName || customers.find(c => c.email === formData.to)?.name || ''
-      };
-      
-      onQueue(emailData);
-      if (onClose) {
-        onClose();
-      }
-    }
-  };
-
-  return (
-    <form onSubmit={handleSend} className="space-y-6">
-      {!isStandalone && (
-        <h3 className="text-lg font-semibold text-gray-900">
-          {replyType === 'reply' ? 'Reply to Email' : 'Compose Email'}
-        </h3>
-      )}
-      
-      {/* Email Header Fields */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">From</label>
-          <select
-            value={formData.from}
-            onChange={(e) => setFormData({ ...formData, from: e.target.value })}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            {staffMembers.map(staff => (
-              <option key={staff.id} value={staff.email}>
-                {staff.name} ({staff.email})
-              </option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            To <span className="text-red-500">*</span>
-          </label>
-          <div className="flex space-x-2">
-            <input
-              type="email"
-              value={formData.to}
-              onChange={(e) => setFormData({ ...formData, to: e.target.value })}
-              className={`flex-1 border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-                errors.to ? 'border-red-500' : 'border-gray-300'
-              }`}
-              placeholder="recipient@example.com"
-            />
-            <select
-              value={formData.customerId}
-              onChange={(e) => {
-                const selectedCustomer = customers.find(c => c.id === parseInt(e.target.value));
-                setFormData({ 
-                  ...formData, 
-                  customerId: e.target.value,
-                  to: selectedCustomer?.email || formData.to,
-                  customerName: selectedCustomer?.name || ''
-                });
-              }}
-              className="border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="">Select Customer</option>
-              {customers.map(customer => (
-                <option key={customer.id} value={customer.id}>
-                  {customer.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          {errors.to && <p className="text-red-500 text-xs mt-1">{errors.to}</p>}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">CC</label>
-          <input
-            type="email"
-            value={formData.cc}
-            onChange={(e) => setFormData({ ...formData, cc: e.target.value })}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="cc@example.com"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">BCC</label>
-          <input
-            type="email"
-            value={formData.bcc}
-            onChange={(e) => setFormData({ ...formData, bcc: e.target.value })}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="bcc@example.com"
-          />
-        </div>
-      </div>
-
-      {/* Subject */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Subject <span className="text-red-500">*</span>
-        </label>
-        <input
-          type="text"
-          value={formData.subject}
-          onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
-          className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-            errors.subject ? 'border-red-500' : 'border-gray-300'
-          }`}
-          placeholder="Enter email subject"
-        />
-        {errors.subject && <p className="text-red-500 text-xs mt-1">{errors.subject}</p>}
-      </div>
-
-      {/* Template Selection */}
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <label className="block text-sm font-medium text-gray-700">Email Templates</label>
-          <button
-            type="button"
-            onClick={() => setShowTemplates(!showTemplates)}
-            className="text-blue-600 hover:text-blue-800 text-sm font-medium"
-          >
-            {showTemplates ? 'Hide Templates' : 'Show Templates'}
-          </button>
-        </div>
-        
-        {showTemplates && (
-          <div className="border border-gray-200 rounded-md p-4 bg-gray-50">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {templates.map(template => (
-                <button
-                  key={template.id}
-                  type="button"
-                  onClick={() => applyTemplate(template)}
-                  className="text-left p-3 border border-gray-300 rounded-md hover:border-blue-500 hover:bg-blue-50 transition-colors"
-                >
-                  <h4 className="font-medium text-gray-900 text-sm">{template.name}</h4>
-                  <p className="text-xs text-gray-500 mt-1">{template.subject}</p>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Email Body */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Message <span className="text-red-500">*</span>
-        </label>
-        <textarea
-          value={formData.body}
-          onChange={(e) => setFormData({ ...formData, body: e.target.value })}
-          className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-            errors.body ? 'border-red-500' : 'border-gray-300'
-          }`}
-          rows="12"
-          placeholder="Enter your message here..."
-        />
-        {errors.body && <p className="text-red-500 text-xs mt-1">{errors.body}</p>}
-      </div>
-
-      {/* Priority and Options */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-          <select
-            value={formData.priority}
-            onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="low">Low</option>
-            <option value="normal">Normal</option>
-            <option value="high">High</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Attachments</label>
-          <div className="flex items-center space-x-2">
-            <input
-              type="file"
-              multiple
-              className="hidden"
-              id="attachments"
-              onChange={(e) => {
-                // In a real app, handle file uploads here
-                console.log('Files selected:', e.target.files);
-              }}
-            />
-            <label
-              htmlFor="attachments"
-              className="cursor-pointer flex items-center space-x-2 text-blue-600 hover:text-blue-800"
-            >
-              <Paperclip size={16} />
-              <span className="text-sm">Add Files</span>
-            </label>
-          </div>
-        </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex justify-between items-center pt-4 border-t">
-        <div className="text-sm text-gray-500">
-          💡 Tip: Use templates for consistent messaging
-        </div>
-        <div className="flex space-x-3">
-          <button
-            type="button"
-            onClick={handleQueue}
-            className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 transition-colors flex items-center"
-          >
-            <Clock size={16} className="mr-2" />
-            Queue
-          </button>
-          <button
-            type="submit"
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-          >
-            <Send size={16} className="mr-2" />
-            Send Now
-          </button>
-        </div>
-      </div>
-    </form>
-  );
-};
-
-// SMTP Configuration Form
-const SMTPConfigForm = ({ config, onSave }) => {
-  const [formData, setFormData] = useState({
-    host: config.host || '',
-    port: config.port || 587,
-    secure: config.secure || false,
-    user: config.user || '',
-    password: '',
-    testEmail: ''
-  });
-
-  const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState(null);
-
-  const handleTest = async () => {
-    setTesting(true);
-    try {
-      // In a real app, this would test the SMTP connection
-      setTimeout(() => {
-        setTestResult({ success: true, message: 'SMTP configuration test successful!' });
-        setTesting(false);
-      }, 2000);
-    } catch (error) {
-      setTestResult({ success: false, message: 'SMTP test failed: ' + error.message });
-      setTesting(false);
-    }
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave(formData);
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <h3 className="text-lg font-semibold text-gray-900">SMTP Configuration</h3>
-      
-      <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-        <div className="flex">
-          <AlertCircle className="text-yellow-400 mr-3 mt-0.5" size={20} />
-          <div>
-            <h4 className="text-sm font-medium text-yellow-800">Configuration Required</h4>
-            <p className="text-sm text-yellow-700 mt-1">
-              Enter your SMTP server details to enable email sending functionality.
-            </p>
-          </div>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">SMTP Host</label>
-          <input
-            type="text"
-            value={formData.host}
-            onChange={(e) => setFormData({ ...formData, host: e.target.value })}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="smtp.gmail.com"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Port</label>
-          <input
-            type="number"
-            value={formData.port}
-            onChange={(e) => setFormData({ ...formData, port: parseInt(e.target.value) })}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="587"
-          />
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Username/Email</label>
-          <input
-            type="email"
-            value={formData.user}
-            onChange={(e) => setFormData({ ...formData, user: e.target.value })}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="your-email@domain.com"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Password</label>
-          <input
-            type="password"
-            value={formData.password}
-            onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Your password or app password"
-          />
-        </div>
-      </div>
-
-      <div className="flex items-center">
-        <input
-          type="checkbox"
-          id="secure"
-          checked={formData.secure}
-          onChange={(e) => setFormData({ ...formData, secure: e.target.checked })}
-          className="mr-2"
-        />
-        <label htmlFor="secure" className="text-sm text-gray-700">Use SSL/TLS</label>
-      </div>
-
-      {/* Test Configuration */}
-      <div className="border-t pt-4">
-        <h4 className="text-md font-medium text-gray-900 mb-3">Test Configuration</h4>
-        <div className="flex space-x-3">
-          <input
-            type="email"
-            value={formData.testEmail}
-            onChange={(e) => setFormData({ ...formData, testEmail: e.target.value })}
-            className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="test@example.com"
-          />
-          <button
-            type="button"
-            onClick={handleTest}
-            disabled={testing || !formData.testEmail}
-            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-colors"
-          >
-            {testing ? 'Testing...' : 'Send Test'}
-          </button>
-        </div>
-        
-        {testResult && (
-          <div className={`mt-3 p-3 rounded-md ${
-            testResult.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
-          }`}>
-            {testResult.message}
-          </div>
-        )}
-      </div>
-
-      {/* Action Buttons */}
-      <div className="flex justify-end space-x-3 pt-4 border-t">
-        <button
-          type="submit"
-          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-        >
-          <Save size={16} className="mr-2" />
-          Save Configuration
-        </button>
-      </div>
-    </form>
-  );
-};
-
-// Modal Component (unchanged)
-const Modal = ({ children, onClose }) => {
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-        <div className="fixed inset-0 transition-opacity" aria-hidden="true">
-          <div className="absolute inset-0 bg-gray-500 opacity-75" onClick={onClose}></div>
-        </div>
-        <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full">
-          <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
-            <div className="flex justify-end mb-4">
-              <button 
-                onClick={onClose} 
-                className="text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                <X size={20} />
-              </button>
-            </div>
-            {children}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Customer Form Component (unchanged from previous version)
-const CustomerForm = ({ customer, onSubmit }) => {
-  const [formData, setFormData] = useState({
-    name: customer?.name || '',
-    email: customer?.email || '',
-    phone: customer?.phone || '',
-    company: customer?.company || '',
-    address: customer?.address || '',
-    status: customer?.status || 'Lead',
-    orderValue: customer?.orderValue || 0,
-    tags: customer?.tags?.join(', ') || ''
-  });
-
-  const [errors, setErrors] = useState({});
-
-  const validateForm = () => {
-    const newErrors = {};
-    if (!formData.name.trim()) newErrors.name = 'Name is required';
-    if (!formData.email.trim()) newErrors.email = 'Email is required';
-    else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Email is invalid';
+const handleSend = async (e) => {
+  e.preventDefault();
+  if (validateForm()) {
+    const emailData = {
+      ...formData,
+      customerId: parseInt(formData.customerId) || null,
+      customerName: formData.customerName || customers.find(c => c.email === formData.to)?.name || ''
+    };
     
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (validateForm()) {
-      onSubmit(formData);
+    const success = await onSend(emailData);
+    if (success && onClose) {
+      onClose();
     }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <h3 className="text-lg font-semibold text-gray-900">
-        {customer ? 'Edit Customer' : 'Add New Customer'}
-      </h3>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Name <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="text"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.name ? 'border-red-500' : 'border-gray-300'
-            }`}
-            placeholder="Enter customer name"
-          />
-          {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Email <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="email"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.email ? 'border-red-500' : 'border-gray-300'
-            }`}
-            placeholder="Enter email address"
-          />
-          {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-          <input
-            type="tel"
-            value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter phone number"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
-          <input
-            type="text"
-            value={formData.company}
-            onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="Enter company name"
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-        <textarea
-          value={formData.address}
-          onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          rows="2"
-          placeholder="Enter full address"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-          <select
-            value={formData.status}
-            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="Pending">Pending</option>
-            <option value="In Progress">In Progress</option>
-            <option value="Completed">Completed</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Due Date <span className="text-red-500">*</span>
-          </label>
-          <input
-            type="date"
-            value={formData.dueDate}
-            onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.dueDate ? 'border-red-500' : 'border-gray-300'
-            }`}
-            min={new Date().toISOString().split('T')[0]}
-          />
-          {errors.dueDate && <p className="text-red-500 text-xs mt-1">{errors.dueDate}</p>}
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
-          <input
-            type="text"
-            placeholder="Sales, Follow-up"
-            value={formData.tags}
-            onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-      </div>
-
-      <div className="flex justify-end space-x-3 pt-4 border-t">
-        <button
-          type="submit"
-          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-        >
-          <Save size={16} className="mr-2" />
-          {task ? 'Update Task' : 'Create Task'}
-        </button>
-      </div>
-    </form>
-  );
+  }
 };
-
-export default CRM;)}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="Lead">Lead</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Order Value</label>
-          <input
-            type="number"
-            step="0.01"
-            min="0"
-            value={formData.orderValue}
-            onChange={(e) => setFormData({ ...formData, orderValue: e.target.value })}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            placeholder="0.00"
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Tags</label>
-          <input
-            type="text"
-            placeholder="VIP, Enterprise"
-            value={formData.tags}
-            onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-      </div>
-
-      <div className="flex justify-end space-x-3 pt-4 border-t">
-        <button
-          type="submit"
-          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center"
-        >
-          <Save size={16} className="mr-2" />
-          {customer ? 'Update Customer' : 'Add Customer'}
-        </button>
-      </div>
-    </form>
-  );
-};
-
-// Task Form Component (unchanged from previous version)
-const TaskForm = ({ task, customers, staffMembers, onSubmit }) => {
-  const [formData, setFormData] = useState({
-    title: task?.title || '',
-    description: task?.description || '',
-    customerId: task?.customerId || '',
-    assignedTo: task?.assignedTo || '',
-    priority: task?.priority || 'Medium',
-    status: task?.status || 'Pending',
-    dueDate: task?.dueDate || '',
-    tags: task?.tags?.join(', ') || ''
-  });
-
-  const [errors, setErrors] = useState({});
-
-  const validateForm = () => {
-    const newErrors = {};
-    if (!formData.title.trim()) newErrors.title = 'Title is required';
-    if (!formData.customerId) newErrors.customerId = 'Customer is required';
-    if (!formData.assignedTo) newErrors.assignedTo = 'Assignee is required';
-    if (!formData.dueDate) newErrors.dueDate = 'Due date is required';
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (validateForm()) {
-      onSubmit(formData);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-6">
-      <h3 className="text-lg font-semibold text-gray-900">
-        {task ? 'Edit Task' : 'Add New Task'}
-      </h3>
-      
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">
-          Title <span className="text-red-500">*</span>
-        </label>
-        <input
-          type="text"
-          value={formData.title}
-          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-          className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-            errors.title ? 'border-red-500' : 'border-gray-300'
-          }`}
-          placeholder="Enter task title"
-        />
-        {errors.title && <p className="text-red-500 text-xs mt-1">{errors.title}</p>}
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-        <textarea
-          value={formData.description}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          rows="3"
-          placeholder="Enter task description"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Customer <span className="text-red-500">*</span>
-          </label>
-          <select
-            value={formData.customerId}
-            onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
-            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.customerId ? 'border-red-500' : 'border-gray-300'
-            }`}
-          >
-            <option value="">Select Customer</option>
-            {customers.map(customer => (
-              <option key={customer.id} value={customer.id}>
-                {customer.name} - {customer.company}
-              </option>
-            ))}
-          </select>
-          {errors.customerId && <p className="text-red-500 text-xs mt-1">{errors.customerId}</p>}
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Assign To <span className="text-red-500">*</span>
-          </label>
-          <select
-            value={formData.assignedTo}
-            onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
-            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.assignedTo ? 'border-red-500' : 'border-gray-300'
-            }`}
-          >
-            <option value="">Select Staff Member</option>
-            {staffMembers.map(staff => (
-              <option key={staff.id} value={staff.name}>
-                {staff.name} - {staff.role}
-              </option>
-            ))}
-          </select>
-          {errors.assignedTo && <p className="text-red-500 text-xs mt-1">{errors.assignedTo}</p>}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-          <select
-            value={formData.priority}
-            onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="Low">Low</option>
-            <option value="Medium">Medium</option>
-            <option value="High">High</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-          <select
-            value={formData.status}
-            onChange={(e) => setFormData({ ...formData, status: e.target.value }
