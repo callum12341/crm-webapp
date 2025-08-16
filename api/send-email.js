@@ -21,6 +21,11 @@ const createTransporter = () => {
 };
 
 export default async function handler(req, res) {
+  // Set CORS headers
+  Object.entries(corsHeaders).forEach(([key, value]) => {
+    res.setHeader(key, value);
+  });
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return res.status(200).json({});
@@ -39,7 +44,7 @@ export default async function handler(req, res) {
     if (!process.env.SMTP_HOST || !process.env.SMTP_USER) {
       return res.status(400).json({
         success: false,
-        message: 'SMTP not configured. Please set environment variables.'
+        message: 'SMTP not configured. Please set environment variables in Vercel dashboard.'
       });
     }
 
@@ -77,17 +82,14 @@ export default async function handler(req, res) {
     };
 
     // Add CC and BCC if provided
-    if (cc) mailOptions.cc = cc;
-    if (bcc) mailOptions.bcc = bcc;
+    if (cc && cc.trim()) mailOptions.cc = cc;
+    if (bcc && bcc.trim()) mailOptions.bcc = bcc;
 
     // Send email
+    console.log('Sending email to:', to);
     const info = await transporter.sendMail(mailOptions);
+    console.log('Email sent successfully:', info.messageId);
     
-    // Set CORS headers
-    Object.entries(corsHeaders).forEach(([key, value]) => {
-      res.setHeader(key, value);
-    });
-
     return res.status(200).json({
       success: true,
       message: 'Email sent successfully',
@@ -100,11 +102,6 @@ export default async function handler(req, res) {
   } catch (error) {
     console.error('Email send error:', error);
     
-    // Set CORS headers
-    Object.entries(corsHeaders).forEach(([key, value]) => {
-      res.setHeader(key, value);
-    });
-
     return res.status(500).json({
       success: false,
       message: error.message || 'Failed to send email',
