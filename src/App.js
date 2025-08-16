@@ -143,7 +143,6 @@ const CRM = () => {
   const [customers] = useState(initialCustomers);
   const [tasks] = useState(initialTasks);
   const [emails] = useState(initialEmails);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
   // Global search functionality
@@ -274,7 +273,6 @@ const CRM = () => {
           {searchQuery && (
             <SearchResults 
               results={searchResults} 
-              onSelectCustomer={setSelectedCustomer}
               onClearSearch={() => setSearchQuery('')}
             />
           )}
@@ -423,7 +421,7 @@ const DashboardCard = ({ title, value, icon, color }) => {
 };
 
 // Search Results Component
-const SearchResults = ({ results, onSelectCustomer, onClearSearch }) => {
+const SearchResults = ({ results, onClearSearch }) => {
   const totalResults = results.customers.length + results.tasks.length + results.emails.length;
 
   if (totalResults === 0) {
@@ -470,7 +468,6 @@ const SearchResults = ({ results, onSelectCustomer, onClearSearch }) => {
                   <p className="text-sm text-gray-500">{customer.email} • {customer.company}</p>
                 </div>
                 <button
-                  onClick={() => onSelectCustomer(customer)}
                   className="text-blue-600 hover:text-blue-800 p-2 rounded"
                 >
                   <Eye size={16} />
