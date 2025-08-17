@@ -412,36 +412,55 @@ const CRM = () => {
   };
 
   // Fetch emails from IMAP
-  const fetchEmails = async () => {
-    try {
-      showNotification('Fetching emails from server...', 'info');
+const fetchEmails = async () => {
+  try {
+    showNotification('Fetching emails from server...', 'info');
+    
+    const response = await fetch('/api/email/fetch-inbox', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        folderName: 'INBOX',
+        limit: 50,
+        since: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() // Last 7 days
+      })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      // Process the emails array
+      const newEmails = result.emails.map(emailData => ({
+        id: Math.max(...emails.map(e => e.id), 0) + 1,
+        customerId: null,
+        customerName: emailData.fromName || emailData.from,
+        subject: emailData.subject,
+        from: emailData.from,
+        to: emailData.to,
+        cc: emailData.cc,
+        bcc: emailData.bcc,
+        body: emailData.body,
+        timestamp: new Date(emailData.date).toLocaleString(),
+        isRead: emailData.isRead,
+        isStarred: emailData.isStarred,
+        thread: emailData.messageId,
+        type: 'incoming',
+        status: 'received',
+        priority: 'normal',
+        smtpMessageId: emailData.messageId,
+        attachments: []
+      }));
       
-      const response = await fetch('/api/email/fetch-inbox', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          folderName: 'INBOX',
-          limit: 50,
-          since: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() // Last 7 days
-        })
-      });
-
-      const result = await response.json();
-
-      if (result.success) {
-        showNotification(`Fetched ${result.emailsProcessed.length} new emails`, 'success');
-        // Refresh emails list if connected to database
-        if (isDatabaseConnected) {
-          // Could fetch updated emails from database here
-        }
-      } else {
-        throw new Error(result.message);
-      }
-    } catch (error) {
-      console.error('Email fetch error:', error);
-      showNotification(`Failed to fetch emails: ${error.message}`, 'error');
+      setEmails(prev => [...newEmails, ...prev]);
+      showNotification(`Fetched ${result.emails.length} new emails`, 'success');
+    } else {
+      throw new Error(result.message);
     }
-  };
+  } catch (error) {
+    console.error('Email fetch error:', error);
+    showNotification(`Failed to fetch emails: ${error.message}`, 'error');
+  }
+};
 
   // Sync emails
   const syncEmails = async () => {
