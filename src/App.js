@@ -7,6 +7,277 @@ import {
   Archive, MoreVertical, Filter, SortAsc, Inbox, Outbox, Settings2
 } from 'lucide-react';
 
+// 2. Add the ImapTroubleshooter component right after your imports and before the main CRM component
+const ImapTroubleshooter = () => {
+  const [testResults, setTestResults] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [debugInfo, setDebugInfo] = useState(null);
+
+  // Test basic IMAP connection
+  const testConnection = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/test-imap-connection', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const result = await response.json();
+      setTestResults(result);
+      
+      if (result.success) {
+        console.log('✅ IMAP Connection successful:', result);
+      } else {
+        console.error('❌ IMAP Connection failed:', result);
+      }
+    } catch (error) {
+      setTestResults({ 
+        success: false, 
+        message: 'Network error', 
+        error: error.message 
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Test email fetching with debug info
+  const testEmailFetch = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/email/fetch-inbox', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          folderName: 'INBOX',
+          limit: 5,
+          debug: true
+        })
+      });
+      
+      const result = await response.json();
+      setDebugInfo(result);
+      
+      if (result.success) {
+        console.log('✅ Email fetch successful:', result);
+      } else {
+        console.error('❌ Email fetch failed:', result);
+      }
+    } catch (error) {
+      setDebugInfo({ 
+        success: false, 
+        message: 'Network error', 
+        error: error.message 
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Test different mailboxes
+  const testMailboxes = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/inspect-mailboxes', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const result = await response.json();
+      setDebugInfo(result);
+      
+      console.log('📁 Mailbox inspection:', result);
+    } catch (error) {
+      setDebugInfo({ 
+        success: false, 
+        message: 'Mailbox inspection failed', 
+        error: error.message 
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="bg-white border rounded-lg p-6">
+        <h3 className="text-lg font-medium mb-4">IMAP Troubleshooting</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <button
+            onClick={testConnection}
+            disabled={isLoading}
+            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
+          >
+            {isLoading ? 'Testing...' : 'Test Connection'}
+          </button>
+          
+          <button
+            onClick={testEmailFetch}
+            disabled={isLoading}
+            className="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50"
+          >
+            {isLoading ? 'Testing...' : 'Test Email Fetch'}
+          </button>
+          
+          <button
+            onClick={testMailboxes}
+            disabled={isLoading}
+            className="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50"
+          >
+            {isLoading ? 'Testing...' : 'Inspect Mailboxes'}
+          </button>
+        </div>
+
+        {/* Connection Test Results */}
+        {testResults && (
+          <div className={`p-4 rounded-lg mb-4 ${
+            testResults.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+          }`}>
+            <h4 className="font-medium mb-2">
+              {testResults.success ? '✅ Connection Test' : '❌ Connection Failed'}
+            </h4>
+            <p className="text-sm mb-2">{testResults.message}</p>
+            
+            {testResults.success && testResults.mailboxInfo && (
+              <div className="text-xs space-y-1">
+                <p>Emails in INBOX: {testResults.mailboxInfo.exists}</p>
+                <p>Unread: {testResults.mailboxInfo.unseen}</p>
+                <p>Recent: {testResults.mailboxInfo.recent}</p>
+              </div>
+            )}
+            
+            {testResults.availableMailboxes && (
+              <div className="text-xs mt-2">
+                <p>Available mailboxes: {testResults.availableMailboxes.join(', ')}</p>
+              </div>
+            )}
+            
+            {testResults.error && (
+              <details className="text-xs mt-2">
+                <summary>Error Details</summary>
+                <pre className="mt-1 p-2 bg-black bg-opacity-10 rounded text-xs overflow-auto">
+                  {testResults.error}
+                </pre>
+              </details>
+            )}
+          </div>
+        )}
+
+        {/* Debug Information */}
+        {debugInfo && (
+          <div className={`p-4 rounded-lg ${
+            debugInfo.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+          }`}>
+            <h4 className="font-medium mb-2">
+              {debugInfo.success ? '✅ Debug Results' : '❌ Debug Failed'}
+            </h4>
+            <p className="text-sm mb-2">{debugInfo.message}</p>
+            
+            {debugInfo.success && debugInfo.emails && (
+              <div className="text-xs">
+                <p>Fetched {debugInfo.emails.length} emails</p>
+                {debugInfo.stats && (
+                  <div className="mt-2 space-y-1">
+                    <p>Total in mailbox: {debugInfo.stats.mailboxInfo?.exists || 'Unknown'}</p>
+                    <p>Processed: {debugInfo.stats.totalProcessed}</p>
+                    <p>Errors: {debugInfo.stats.errorsCount}</p>
+                  </div>
+                )}
+              </div>
+            )}
+            
+            {debugInfo.results && (
+              <div className="text-xs mt-2">
+                <p>Mailboxes found:</p>
+                <ul className="ml-4 mt-1">
+                  {Object.entries(debugInfo.results).map(([name, info]) => (
+                    <li key={name}>
+                      {name}: {info.error ? `Error - ${info.error}` : `${info.exists || 0} emails`}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            
+            {debugInfo.suggestions && (
+              <div className="text-xs mt-2">
+                <p className="font-medium">Suggestions:</p>
+                <ul className="ml-4 mt-1">
+                  {debugInfo.suggestions.map((suggestion, index) => (
+                    <li key={index}>• {suggestion}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            
+            {(debugInfo.error || debugInfo.details) && (
+              <details className="text-xs mt-2">
+                <summary>Technical Details</summary>
+                <pre className="mt-1 p-2 bg-black bg-opacity-10 rounded text-xs overflow-auto max-h-40">
+                  {JSON.stringify(debugInfo, null, 2)}
+                </pre>
+              </details>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Common Issues and Solutions */}
+      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+        <h4 className="font-medium text-yellow-800 mb-2">Common Issues & Solutions:</h4>
+        <div className="text-sm text-yellow-700 space-y-2">
+          <div>
+            <strong>1. Authentication Failed:</strong>
+            <ul className="ml-4 mt-1">
+              <li>• Use App Password instead of regular password</li>
+              <li>• Enable 2FA first, then generate app password</li>
+              <li>• Check username format (some need full email, others just username)</li>
+            </ul>
+          </div>
+          
+          <div>
+            <strong>2. Connection Timeout:</strong>
+            <ul className="ml-4 mt-1">
+              <li>• Verify IMAP host and port are correct</li>
+              <li>• Check if provider blocks external IMAP access</li>
+              <li>• Try different port (993 for SSL, 143 for non-SSL)</li>
+            </ul>
+          </div>
+          
+          <div>
+            <strong>3. Empty Mailbox:</strong>
+            <ul className="ml-4 mt-1">
+              <li>• Try different folder names (INBOX, All Mail, etc.)</li>
+              <li>• Check if emails exist in the account</li>
+              <li>• Some providers use different folder structures</li>
+            </ul>
+          </div>
+          
+          <div>
+            <strong>4. SSL/TLS Issues:</strong>
+            <ul className="ml-4 mt-1">
+              <li>• Try IMAP_SECURE=false with port 143</li>
+              <li>• Some servers use STARTTLS instead of direct SSL</li>
+              <li>• Check provider's documentation for correct settings</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+      {/* Environment Check - Note: This won't work in browser, only on server */}
+      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <h4 className="font-medium text-blue-800 mb-2">Environment Variables:</h4>
+        <div className="text-sm text-blue-700">
+          <p>Environment variables are only accessible on the server side.</p>
+          <p>Check your Vercel dashboard → Settings → Environment Variables</p>
+          <p>Or use the debug endpoint: <code>/api/debug-imap</code></p>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // Sample data (existing data structure)
 const initialCustomers = [
   {
@@ -687,7 +958,8 @@ const fetchEmails = async () => {
     { id: 'emails', label: 'Emails', icon: <Mail size={20} /> },
     { id: 'compose', label: 'Compose', icon: <Send size={20} /> },
     { id: 'email-setup', label: 'Email Setup', icon: <Settings2 size={20} /> },
-    { id: 'database', label: 'Database', icon: <Database size={20} /> }
+    { id: 'database', label: 'Database', icon: <Database size={20} /> }, // <-- ADD COMMA HERE
+    { id: 'imap-debug', label: 'IMAP Debug', icon: <AlertCircle size={20} /> }
   ];
 
   return (
@@ -815,10 +1087,11 @@ const fetchEmails = async () => {
         <header className="bg-white shadow-sm border-b px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <h2 className="text-2xl font-semibold text-gray-800 capitalize">
+                <h2 className="text-2xl font-semibold text-gray-800 capitalize">
                 {activeModule === 'dashboard' ? 'Dashboard' : 
                  activeModule === 'compose' ? 'Compose Email' : 
-                 activeModule === 'email-setup' ? 'Email Setup' : activeModule}
+                 activeModule === 'email-setup' ? 'Email Setup' :
+                 activeModule === 'imap-debug' ? 'IMAP Debugging' : activeModule}
               </h2>
               {activeModule !== 'dashboard' && activeModule !== 'compose' && activeModule !== 'email-setup' && (
                 <span className="text-sm text-gray-500">
@@ -940,6 +1213,10 @@ const fetchEmails = async () => {
               onConfigUpdate={setEmailConfig}
               onTestEmail={sendEmail}
             />
+          )}
+          // ADD THIS NEW SECTION RIGHT AFTER THE ABOVE email-setup SECTION:
+          {!searchQuery && activeModule === 'imap-debug' && (
+            <ImapTroubleshooter />
           )}
         </main>
       </div>
@@ -2114,7 +2391,9 @@ const EmailCard = ({ email, onReply, onMarkAsRead, onToggleStar, onDelete }) => 
         <div className="flex items-center space-x-4">
           {email.priority && email.priority !== 'normal' && (
             <span className={`px-2 py-1 rounded-full text-xs ${
-              email.priority === 'high' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'
+              email.priority === 'high' ? 'bg-red-100 text-red-800' :
+              email.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+              'bg-green-100 text-green-800'
             }`}>
               {email.priority}
             </span>
@@ -2663,7 +2942,7 @@ const DatabaseManager = ({ onClose, onConnectionChange, isDatabaseConnected }) =
 
           <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
             <h5 className="font-medium text-blue-800 mb-2">Setup Instructions:</h5>
-            <ol className="text-sm text-blue-700 space-y-1">
+            <ol className="text-sm text-blue-700 space-y-1 list-decimal list-inside">
               <li>1. Set up PostgreSQL database (Vercel Postgres, Neon, or Supabase)</li>
               <li>2. Add DATABASE_URL environment variable in Vercel</li>
               <li>3. Test connection to initialize database tables</li>

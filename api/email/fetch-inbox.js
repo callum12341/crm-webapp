@@ -1,4 +1,4 @@
-// api/email/fetch-inbox.js - Fixed IMAP email fetching service
+// api/email/fetch-inbox.js - Complete enhanced version with debugging
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
@@ -23,6 +23,15 @@ export default async function handler(req, res) {
 
   try {
     console.log('Starting IMAP fetch process...');
+
+    // Enhanced config logging
+    console.log('IMAP Config check:', {
+      host: process.env.IMAP_HOST,
+      port: process.env.IMAP_PORT,
+      secure: process.env.IMAP_SECURE,
+      user: process.env.IMAP_USER ? 'SET' : 'MISSING',
+      password: process.env.IMAP_PASSWORD ? 'SET' : 'MISSING'
+    });
 
     // Check IMAP configuration
     const imapConfig = {
@@ -87,10 +96,34 @@ export default async function handler(req, res) {
 
     try {
       await client.connect();
-      console.log('Connected to IMAP server successfully');
-
-      console.log('Selecting mailbox:', folderName);
-      const mailbox = await client.getMailboxLock(folderName);
+      console.log('✅ IMAP connection successful');
+      
+      // List available mailboxes first
+      const allMailboxes = await client.list();
+      console.log('📁 Available mailboxes:', allMailboxes.map(m => m.name));
+      
+      // Try to select the mailbox
+      const lock = await client.getMailboxLock(folderName);
+      console.log('📧 Mailbox info:', {
+        exists: lock.exists,
+        recent: lock.recent,
+        unseen: lock.unseen
+      });
+      
+      // If no emails, return early with info
+      if (lock.exists === 0) {
+        lock.release();
+        return res.status(200).json({
+          success: true,
+          message: 'Mailbox is empty',
+          emails: [],
+          stats: { 
+            totalProcessed: 0, 
+            mailboxInfo: { exists: 0 },
+            availableMailboxes: allMailboxes.map(m => m.name)
+          }
+        });
+      }
 
       try {
         // Build search criteria
@@ -180,18 +213,33 @@ export default async function handler(req, res) {
             folder: folderName,
             limit,
             mailboxInfo: {
-              exists: mailbox.exists,
-              recent: mailbox.recent,
-              unseen: mailbox.unseen
-            }
+              exists: lock.exists,
+              recent: lock.recent,
+              unseen: lock.unseen
+            },
+            availableMailboxes: allMailboxes.map(m => m.name)
           },
           timestamp: new Date().toISOString()
         });
 
       } finally {
-        mailbox.release();
+        lock.release();
       }
 
+    } catch (error) {
+      console.error('Detailed IMAP error:', {
+        message: error.message,
+        code: error.code,
+        stack: error.stack
+      });
+      
+      // Return specific error info
+      return res.status(500).json({
+        success: false,
+        message: `IMAP Error: ${error.message}`,
+        errorCode: error.code,
+        suggestions: getErrorSuggestions(error)
+      });
     } finally {
       await client.logout();
       console.log('Disconnected from IMAP server');
@@ -214,7 +262,7 @@ export default async function handler(req, res) {
     } else if (error.message.includes('Invalid credentials') || error.message.includes('authentication')) {
       friendlyMessage = 'Authentication failed';
       suggestions.push('Check IMAP_USER and IMAP_PASSWORD');
-      suggestions.push('For Gmail: Use App Password, not regular password');
+      suggestions.push('For non-Gmail: Use App Password, not regular password');
       suggestions.push('Enable 2-Factor Authentication and generate App Password');
     } else if (error.message.includes('TLS') || error.message.includes('SSL')) {
       friendlyMessage = 'Secure connection failed';
@@ -234,4 +282,30 @@ export default async function handler(req, res) {
       }
     });
   }
+}
+
+function getErrorSuggestions(error) {
+  const suggestions = [];
+  
+  if (error.code === 'ECONNREFUSED') {
+    suggestions.push('Check IMAP host and port settings');
+    suggestions.push('Verify firewall allows outbound IMAP connections');
+  } else if (error.message.includes('authentication')) {
+    suggestions.push('Verify IMAP username and password');
+    suggestions.push('Use app-specific password if 2FA is enabled');
+    suggestions.push('Check if IMAP access is enabled in email settings');
+  } else if (error.message.includes('SELECT')) {
+    suggestions.push('Try different folder name (INBOX, Inbox, etc.)');
+    suggestions.push('Check if the mailbox exists and has read permissions');
+  } else if (error.message.includes('timeout')) {
+    suggestions.push('Check network connectivity');
+    suggestions.push('Try increasing timeout values');
+    suggestions.push('Verify IMAP server is responsive');
+  } else if (error.message.includes('TLS') || error.message.includes('SSL')) {
+    suggestions.push('Try IMAP_SECURE=false with port 143');
+    suggestions.push('Check if server supports STARTTLS');
+    suggestions.push('Verify SSL/TLS certificates are valid');
+  }
+  
+  return suggestions;
 }
