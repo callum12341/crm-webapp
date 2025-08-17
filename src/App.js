@@ -701,6 +701,25 @@ const fetchEmails = async () => {
 
     if (result.success) {
       // Process the emails array
+const fetchEmails = async () => {
+  try {
+    showNotification('Fetching recent emails from large mailbox...', 'info');
+    
+    const response = await fetch('/api/email/fetch-inbox', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        folderName: 'INBOX',
+        limit: 10, // MUCH smaller limit for large mailboxes
+        since: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() // Only last 7 days
+      })
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      console.log(`📧 Fetched ${result.emails.length} emails from INBOX with 15k+ emails`);
+      
       const newEmails = result.emails.map(emailData => ({
         id: Math.max(...emails.map(e => e.id), 0) + 1,
         customerId: null,
@@ -723,7 +742,7 @@ const fetchEmails = async () => {
       }));
       
       setEmails(prev => [...newEmails, ...prev]);
-      showNotification(`Fetched ${result.emails.length} new emails`, 'success');
+      showNotification(`Fetched ${result.emails.length} recent emails (${result.stats?.mailboxInfo?.exists || '15k+'} total in INBOX)`, 'success');
     } else {
       throw new Error(result.message);
     }

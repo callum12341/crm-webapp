@@ -1,4 +1,4 @@
-// api/email/fetch-inbox.js - Complete enhanced version with debugging
+// api/email/fetch-inbox.js - Optimized for large mailboxes (15k+ emails)
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
@@ -22,7 +22,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    console.log('Starting IMAP fetch process...');
+    console.log('🗂️ Starting IMAP fetch for large mailbox...');
 
     // Enhanced config logging
     console.log('IMAP Config check:', {
@@ -33,7 +33,6 @@ export default async function handler(req, res) {
       password: process.env.IMAP_PASSWORD ? 'SET' : 'MISSING'
     });
 
-    // Check IMAP configuration
     const imapConfig = {
       host: process.env.IMAP_HOST,
       port: parseInt(process.env.IMAP_PORT) || 993,
@@ -44,73 +43,61 @@ export default async function handler(req, res) {
       }
     };
 
-    console.log('IMAP Config:', {
-      host: imapConfig.host,
-      port: imapConfig.port,
-      secure: imapConfig.secure,
-      user: imapConfig.auth.user,
-      hasPassword: !!imapConfig.auth.pass
-    });
-
     if (!imapConfig.host || !imapConfig.auth.user || !imapConfig.auth.pass) {
       return res.status(400).json({
         success: false,
-        message: 'IMAP not configured. Please set IMAP environment variables.',
-        missingVars: {
-          IMAP_HOST: !imapConfig.host,
-          IMAP_USER: !imapConfig.auth.user,
-          IMAP_PASSWORD: !imapConfig.auth.pass
-        },
-        setupInstructions: {
-          step1: 'Go to Vercel Dashboard → Your Project → Settings → Environment Variables',
-          step2: 'Add IMAP_HOST (e.g., imap.gmail.com)',
-          step3: 'Add IMAP_USER (your email)',
-          step4: 'Add IMAP_PASSWORD (your app password)',
-          step5: 'Add IMAP_PORT (993) - optional',
-          step6: 'Add IMAP_SECURE (true) - optional',
-          step7: 'Redeploy your application'
-        }
+        message: 'IMAP not configured. Please set IMAP environment variables.'
       });
     }
 
-    // Try to import ImapFlow
+    // Import ImapFlow
     let ImapFlow;
     try {
       const imapModule = await import('imapflow');
       ImapFlow = imapModule.ImapFlow;
-      console.log('ImapFlow imported successfully');
+      console.log('✅ ImapFlow imported successfully');
     } catch (importError) {
-      console.error('Failed to import ImapFlow:', importError);
+      console.error('❌ Failed to import ImapFlow:', importError);
       return res.status(500).json({
         success: false,
-        message: 'IMAP library not available. Please install imapflow package.',
-        error: importError.message,
-        solution: 'Run: npm install imapflow'
+        message: 'IMAP library not available.',
+        error: importError.message
       });
     }
 
-    const { folderName = 'INBOX', limit = 50, since } = req.body;
+    // Get request parameters with safe defaults for large mailboxes
+    const { 
+      folderName = 'INBOX', 
+      limit = 10,  // MUCH smaller default
+      since,
+      searchCriteria 
+    } = req.body;
 
-    console.log('Connecting to IMAP server...');
+    // Enforce limits for large mailboxes
+    const safeLimit = Math.min(parseInt(limit), 50); // Never more than 50
+    
+    console.log(`📊 Fetch parameters:`, {
+      folder: folderName,
+      limit: safeLimit,
+      since: since ? 'YES' : 'NO',
+      searchCriteria: searchCriteria || 'ALL'
+    });
+
+    console.log('🔌 Connecting to IMAP server...');
     const client = new ImapFlow(imapConfig);
 
     try {
       await client.connect();
       console.log('✅ IMAP connection successful');
       
-      // List available mailboxes first
-      const allMailboxes = await client.list();
-      console.log('📁 Available mailboxes:', allMailboxes.map(m => m.name));
-      
-      // Try to select the mailbox
       const lock = await client.getMailboxLock(folderName);
-      console.log('📧 Mailbox info:', {
+      console.log(`📧 Mailbox "${folderName}" info:`, {
         exists: lock.exists,
         recent: lock.recent,
         unseen: lock.unseen
       });
       
-      // If no emails, return early with info
+      // For large mailboxes, always return info even if we don't fetch all
       if (lock.exists === 0) {
         lock.release();
         return res.status(200).json({
@@ -119,56 +106,86 @@ export default async function handler(req, res) {
           emails: [],
           stats: { 
             totalProcessed: 0, 
-            mailboxInfo: { exists: 0 },
-            availableMailboxes: allMailboxes.map(m => m.name)
+            mailboxInfo: { exists: 0 }
           }
         });
       }
 
       try {
-        // Build search criteria
-        let searchCriteria = ['ALL'];
-        if (since) {
+        // Build optimized search criteria for large mailboxes
+        let searchQuery;
+        
+        if (searchCriteria === 'UNSEEN') {
+          searchQuery = ['UNSEEN'];
+        } else if (since) {
           const sinceDate = new Date(since);
-          searchCriteria = ['SINCE', sinceDate];
+          searchQuery = ['SINCE', sinceDate];
+          console.log(`🔍 Searching emails since: ${sinceDate.toISOString()}`);
+        } else {
+          // For large mailboxes, we'll fetch the most recent emails
+          // by using a sequence range instead of searching all
+          searchQuery = null; // We'll use sequence instead
         }
-
-        console.log('Searching for messages with criteria:', searchCriteria);
-
-        // Fetch message UIDs
-        const messages = client.fetch(searchCriteria, {
-          uid: true,
-          flags: true,
-          envelope: true,
-          bodyStructure: true,
-          size: true,
-          internalDate: true
-        }, { uid: true });
 
         const emailsProcessed = [];
         const errors = [];
         let processedCount = 0;
 
-        console.log('Processing messages...');
+        console.log(`🔄 Processing up to ${safeLimit} emails...`);
+
+        let messages;
+        
+        if (searchQuery) {
+          // Use search criteria
+          console.log('🔍 Using search criteria:', searchQuery);
+          messages = client.fetch(searchQuery, {
+            uid: true,
+            flags: true,
+            envelope: true,
+            bodyStructure: true,
+            size: true,
+            internalDate: true
+          }, { uid: true });
+        } else {
+          // For large mailboxes: fetch most recent emails using sequence
+          const startSeq = Math.max(1, lock.exists - safeLimit + 1);
+          const endSeq = lock.exists;
+          const sequence = `${startSeq}:${endSeq}`;
+          
+          console.log(`📨 Fetching recent emails using sequence: ${sequence} (${startSeq} to ${endSeq} of ${lock.exists})`);
+          
+          messages = client.fetch(sequence, {
+            uid: true,
+            flags: true,
+            envelope: true,
+            bodyStructure: true,
+            size: true,
+            internalDate: true
+          });
+        }
+
         for await (let message of messages) {
-          if (processedCount >= limit) break;
+          if (processedCount >= safeLimit) {
+            console.log(`⏹️ Reached limit of ${safeLimit} emails`);
+            break;
+          }
           
           try {
-            console.log(`Processing message ${processedCount + 1}/${limit}`);
+            console.log(`📩 Processing email ${processedCount + 1}/${safeLimit}: UID ${message.uid}`);
 
-            // Get message body
+            // For large mailboxes, limit body fetching to avoid timeouts
             let bodyText = '';
             try {
-              const bodyParts = await client.download(message.uid, '1', { uid: true });
+              // Only fetch first part and limit size
+              const bodyParts = await client.download(message.uid, '1', { uid: true, maxBytes: 5000 });
               if (bodyParts) {
-                bodyText = bodyParts.toString('utf8');
+                bodyText = bodyParts.toString('utf8').substring(0, 2000);
               }
             } catch (bodyError) {
-              console.warn('Could not fetch body for message:', bodyError.message);
-              bodyText = 'Could not fetch message body';
+              console.warn(`⚠️ Could not fetch body for UID ${message.uid}:`, bodyError.message);
+              bodyText = `[Body fetch failed: ${bodyError.message}]`;
             }
 
-            // Extract email data
             const emailData = {
               uid: message.uid,
               subject: message.envelope.subject || '(No Subject)',
@@ -177,7 +194,7 @@ export default async function handler(req, res) {
               to: message.envelope.to?.[0]?.address || '',
               cc: message.envelope.cc?.map(addr => addr.address).join(', ') || '',
               bcc: message.envelope.bcc?.map(addr => addr.address).join(', ') || '',
-              body: bodyText.substring(0, 5000), // Limit body size
+              body: bodyText,
               isRead: message.flags.has('\\Seen'),
               isStarred: message.flags.has('\\Flagged'),
               messageId: message.envelope.messageId || null,
@@ -192,7 +209,7 @@ export default async function handler(req, res) {
             processedCount++;
             
           } catch (emailError) {
-            console.error('Error processing email:', emailError);
+            console.error(`❌ Error processing email UID ${message.uid}:`, emailError.message);
             errors.push({
               uid: message.uid,
               error: emailError.message
@@ -200,24 +217,25 @@ export default async function handler(req, res) {
           }
         }
 
-        console.log(`Successfully processed ${emailsProcessed.length} emails`);
+        console.log(`✅ Successfully processed ${emailsProcessed.length} emails from large mailbox`);
 
         return res.status(200).json({
           success: true,
-          message: `Fetched ${emailsProcessed.length} emails from ${folderName}`,
+          message: `Fetched ${emailsProcessed.length} emails from ${folderName} (${lock.exists} total)`,
           emails: emailsProcessed,
           errors,
           stats: {
             totalProcessed: emailsProcessed.length,
             errorsCount: errors.length,
             folder: folderName,
-            limit,
+            limit: safeLimit,
             mailboxInfo: {
               exists: lock.exists,
               recent: lock.recent,
               unseen: lock.unseen
             },
-            availableMailboxes: allMailboxes.map(m => m.name)
+            largeMailbox: lock.exists > 1000,
+            fetchStrategy: searchQuery ? 'search' : 'sequence'
           },
           timestamp: new Date().toISOString()
         });
@@ -227,13 +245,12 @@ export default async function handler(req, res) {
       }
 
     } catch (error) {
-      console.error('Detailed IMAP error:', {
+      console.error('❌ Detailed IMAP error:', {
         message: error.message,
         code: error.code,
         stack: error.stack
       });
       
-      // Return specific error info
       return res.status(500).json({
         success: false,
         message: `IMAP Error: ${error.message}`,
@@ -241,45 +258,27 @@ export default async function handler(req, res) {
         suggestions: getErrorSuggestions(error)
       });
     } finally {
-      await client.logout();
-      console.log('Disconnected from IMAP server');
+      try {
+        await client.logout();
+        console.log('✅ Disconnected from IMAP server');
+      } catch (logoutError) {
+        console.warn('⚠️ Error during logout:', logoutError.message);
+      }
     }
 
   } catch (error) {
-    console.error('IMAP fetch error:', error);
+    console.error('❌ IMAP fetch error:', error);
     
-    // Handle specific IMAP errors
-    let friendlyMessage = 'Failed to fetch emails from inbox';
-    let suggestions = [];
-    
-    if (error.code === 'ECONNREFUSED') {
-      friendlyMessage = 'Cannot connect to IMAP server';
-      suggestions.push('Check IMAP_HOST setting');
-      suggestions.push('Verify firewall/network settings');
-    } else if (error.code === 'ENOTFOUND') {
-      friendlyMessage = 'IMAP server not found';
-      suggestions.push('Check IMAP_HOST spelling');
-    } else if (error.message.includes('Invalid credentials') || error.message.includes('authentication')) {
-      friendlyMessage = 'Authentication failed';
-      suggestions.push('Check IMAP_USER and IMAP_PASSWORD');
-      suggestions.push('For non-Gmail: Use App Password, not regular password');
-      suggestions.push('Enable 2-Factor Authentication and generate App Password');
-    } else if (error.message.includes('TLS') || error.message.includes('SSL')) {
-      friendlyMessage = 'Secure connection failed';
-      suggestions.push('Check IMAP_SECURE setting');
-      suggestions.push('Try IMAP_PORT=993 with IMAP_SECURE=true');
-    }
-
     return res.status(500).json({
       success: false,
-      message: friendlyMessage,
+      message: `Failed to fetch emails: ${error.message}`,
       details: error.message,
       code: error.code,
-      suggestions,
-      debug: {
-        errorType: error.constructor.name,
-        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-      }
+      suggestions: [
+        'Try reducing the limit to 5-10 emails',
+        'Use time-based filtering (since parameter)',
+        'Check if the mailbox is too large for IMAP operations'
+      ]
     });
   }
 }
@@ -293,18 +292,13 @@ function getErrorSuggestions(error) {
   } else if (error.message.includes('authentication')) {
     suggestions.push('Verify IMAP username and password');
     suggestions.push('Use app-specific password if 2FA is enabled');
-    suggestions.push('Check if IMAP access is enabled in email settings');
-  } else if (error.message.includes('SELECT')) {
-    suggestions.push('Try different folder name (INBOX, Inbox, etc.)');
-    suggestions.push('Check if the mailbox exists and has read permissions');
   } else if (error.message.includes('timeout')) {
-    suggestions.push('Check network connectivity');
-    suggestions.push('Try increasing timeout values');
-    suggestions.push('Verify IMAP server is responsive');
-  } else if (error.message.includes('TLS') || error.message.includes('SSL')) {
-    suggestions.push('Try IMAP_SECURE=false with port 143');
-    suggestions.push('Check if server supports STARTTLS');
-    suggestions.push('Verify SSL/TLS certificates are valid');
+    suggestions.push('Mailbox is too large - try smaller limits (5-10 emails)');
+    suggestions.push('Use time-based filtering to reduce search scope');
+    suggestions.push('Try fetching from smaller folders first');
+  } else if (error.message.includes('SELECT') || error.message.includes('EXAMINE')) {
+    suggestions.push('Try different folder name (INBOX, Sent, etc.)');
+    suggestions.push('Check if the mailbox exists and has read permissions');
   }
   
   return suggestions;
