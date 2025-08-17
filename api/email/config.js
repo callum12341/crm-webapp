@@ -1,4 +1,4 @@
-// api/email/config.js - Email configuration management
+// api/email/config.js - Email configuration management.
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, PUT, OPTIONS',
