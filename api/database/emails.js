@@ -1,9 +1,9 @@
-// api/database/emails.js - Email CRUD operations
+/ api/database/emails.js - Enhanced email CRUD operations
 import { EmailDAO } from '../../lib/database.js';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type',
 };
 
@@ -28,12 +28,45 @@ export default async function handler(req, res) {
         });
 
       case 'POST':
-        // This will be called when an email is sent to store it in database
+        // Create new email record (used when sending emails or importing)
         const newEmail = await EmailDAO.create(req.body);
         return res.status(201).json({
           success: true,
           data: newEmail,
           message: 'Email record created successfully'
+        });
+
+      case 'PUT':
+        // Update email (mark as read, star, etc.)
+        const { id, ...updateData } = req.body;
+        if (!id) {
+          return res.status(400).json({
+            success: false,
+            message: 'Email ID is required'
+          });
+        }
+        
+        const updatedEmail = await EmailDAO.update(id, updateData);
+        return res.status(200).json({
+          success: true,
+          data: updatedEmail,
+          message: 'Email updated successfully'
+        });
+
+      case 'DELETE':
+        const { emailId } = req.query;
+        if (!emailId) {
+          return res.status(400).json({
+            success: false,
+            message: 'Email ID is required'
+          });
+        }
+        
+        const deletedEmail = await EmailDAO.delete(Number(emailId));
+        return res.status(200).json({
+          success: true,
+          data: deletedEmail,
+          message: 'Email deleted successfully'
         });
 
       default:

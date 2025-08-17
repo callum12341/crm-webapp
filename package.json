@@ -1,6 +1,6 @@
 {
   "name": "crm-webapp",
-  "version": "1.0.0",
+  "version": "4.0.0",
   "private": true,
   "homepage": ".",
   "dependencies": {
@@ -10,13 +10,35 @@
     "lucide-react": "^0.263.1",
     "web-vitals": "^2.1.4",
     "nodemailer": "^6.9.7",
-    "@vercel/postgres": "^0.5.1"
+    "@vercel/postgres": "^0.5.1",
+    "imapflow": "^1.0.164",
+    "papaparse": "^5.4.1"
   },
   "scripts": {
     "start": "react-scripts start",
     "build": "GENERATE_SOURCEMAP=false react-scripts build && echo 'Build completed'",
     "test": "react-scripts test --watchAll=false",
-    "eject": "react-scripts eject",
-    "build:analyze": "npm run build && npx serve -s build"
+    "eject": "react-scripts eject"
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ],
+    "rules": {
+      "no-unused-vars": "warn"
+    }
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
   }
 }
