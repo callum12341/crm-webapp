@@ -1,4 +1,4 @@
-// api/database/init.js - Initialize database
+// api/database/init.js - Initialize database using lib/database.js
 import { VercelDatabase } from '../../lib/database.js';
 
 const corsHeaders = {
