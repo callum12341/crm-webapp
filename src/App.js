@@ -1,8 +1,9 @@
-// src/App.js - CRM WebApp with SMTP Email Functionality - COMPLETE VERSION
-import React, { useState, useMemo } from 'react';
+// src/App.js - Complete CRM WebApp with Database Integration
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Search, Users, CheckSquare, Mail, Building, Settings, Menu, X, Eye, FileText,
-  Plus, Edit2, Trash2, Save, User, Phone, Send, Paperclip, Clock
+  Plus, Edit2, Trash2, Save, User, Phone, Send, Paperclip, Clock, Database,
+  RefreshCw, AlertCircle, Download, Upload, Shield, BarChart3
 } from 'lucide-react';
 
 // Sample data (existing data structure)
@@ -68,7 +69,6 @@ const initialTasks = [
   }
 ];
 
-// Enhanced email structure with SMTP tracking
 const initialEmails = [
   {
     id: 1,
@@ -103,7 +103,6 @@ const initialEmails = [
   }
 ];
 
-// Email templates for common scenarios
 const emailTemplates = [
   {
     id: 1,
@@ -165,15 +164,6 @@ const staffMembers = [
   { id: 3, name: 'David Brown', email: 'david@company.com', role: 'Support Lead' }
 ];
 
-// SMTP Configuration state
-const defaultSmtpConfig = {
-  host: '',
-  port: 587,
-  secure: false,
-  user: '',
-  configured: false
-};
-
 const CRM = () => {
   const [activeModule, setActiveModule] = useState('dashboard');
   const [searchQuery, setSearchQuery] = useState('');
@@ -185,10 +175,9 @@ const CRM = () => {
   const [modalType, setModalType] = useState('');
   const [selectedItem, setSelectedItem] = useState(null);
   const [notification, setNotification] = useState(null);
-  const [smtpConfig, setSmtpConfig] = useState(defaultSmtpConfig);
-
-  // Email sending state
   const [emailQueue, setEmailQueue] = useState([]);
+  const [showDatabaseManager, setShowDatabaseManager] = useState(false);
+  const [isDatabaseConnected, setIsDatabaseConnected] = useState(false);
 
   // Show notification helper
   const showNotification = (message, type = 'success') => {
@@ -245,6 +234,32 @@ const CRM = () => {
         };
 
         setEmails([newEmail, ...emails]);
+        
+        // Store in database if connected
+        if (isDatabaseConnected) {
+          try {
+            await fetch('/api/database/emails', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                customer_id: emailData.customerId,
+                customer_name: emailData.customerName,
+                subject: emailData.subject,
+                from_email: emailData.from,
+                to_email: emailData.to,
+                cc_email: emailData.cc,
+                bcc_email: emailData.bcc,
+                body: emailData.body,
+                type: 'outgoing',
+                status: 'sent',
+                smtp_message_id: result.messageId
+              })
+            });
+          } catch (dbError) {
+            console.warn('Failed to store email in database:', dbError);
+          }
+        }
+
         showNotification('Email sent successfully!', 'success');
         return true;
       } else {
@@ -327,8 +342,8 @@ const CRM = () => {
     }
   };
 
-  // Customer CRUD operations
-  const addCustomer = (customerData) => {
+  // Customer CRUD operations with database support
+  const addCustomer = async (customerData) => {
     const newCustomer = {
       ...customerData,
       id: Math.max(...customers.map(c => c.id), 0) + 1,
@@ -338,29 +353,94 @@ const CRM = () => {
       orderValue: parseFloat(customerData.orderValue) || 0,
       tags: customerData.tags ? customerData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : []
     };
+
+    // Add to local state
     setCustomers([...customers, newCustomer]);
+
+    // Try to add to database if connected
+    if (isDatabaseConnected) {
+      try {
+        await fetch('/api/database/customers', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: newCustomer.name,
+            email: newCustomer.email,
+            phone: newCustomer.phone,
+            company: newCustomer.company,
+            address: newCustomer.address,
+            status: newCustomer.status,
+            source: newCustomer.source,
+            order_value: newCustomer.orderValue,
+            tags: newCustomer.tags
+          })
+        });
+      } catch (dbError) {
+        console.warn('Failed to save customer to database:', dbError);
+      }
+    }
+
     showNotification(`Customer "${newCustomer.name}" added successfully!`);
     closeModal();
   };
 
-  const updateCustomer = (updatedData) => {
+  const updateCustomer = async (updatedData) => {
     const updatedCustomer = {
       ...updatedData,
       orderValue: parseFloat(updatedData.orderValue) || 0,
       tags: updatedData.tags ? updatedData.tags.split(',').map(tag => tag.trim()).filter(tag => tag) : []
     };
+
+    // Update local state
     setCustomers(customers.map(c => 
       c.id === selectedItem.id ? { ...c, ...updatedCustomer } : c
     ));
+
+    // Try to update in database if connected
+    if (isDatabaseConnected) {
+      try {
+        await fetch('/api/database/customers', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: selectedItem.id,
+            name: updatedCustomer.name,
+            email: updatedCustomer.email,
+            phone: updatedCustomer.phone,
+            company: updatedCustomer.company,
+            address: updatedCustomer.address,
+            status: updatedCustomer.status,
+            order_value: updatedCustomer.orderValue,
+            tags: updatedCustomer.tags
+          })
+        });
+      } catch (dbError) {
+        console.warn('Failed to update customer in database:', dbError);
+      }
+    }
+
     showNotification(`Customer "${updatedCustomer.name}" updated successfully!`);
     closeModal();
   };
 
-  const deleteCustomer = (id) => {
+  const deleteCustomer = async (id) => {
     const customer = customers.find(c => c.id === id);
     if (window.confirm(`Are you sure you want to delete "${customer.name}"?`)) {
+      // Delete from local state
       setCustomers(customers.filter(c => c.id !== id));
       setTasks(tasks.filter(t => t.customerId !== id));
+
+      // Try to delete from database if connected
+      if (isDatabaseConnected) {
+        try {
+          await fetch(`/api/database/customers?customerId=${id}`, {
+            method: 'DELETE'
+          });
+        } catch (dbError) {
+          console.warn('Failed to delete customer from database:', dbError);
+        }
+      }
+
       showNotification(`Customer "${customer.name}" deleted successfully!`);
     }
   };
@@ -453,7 +533,8 @@ const CRM = () => {
     { id: 'customers', label: 'Customers', icon: <Users size={20} /> },
     { id: 'tasks', label: 'Tasks', icon: <CheckSquare size={20} /> },
     { id: 'emails', label: 'Emails', icon: <Mail size={20} /> },
-    { id: 'compose', label: 'Compose', icon: <Send size={20} /> }
+    { id: 'compose', label: 'Compose', icon: <Send size={20} /> },
+    { id: 'database', label: 'Database', icon: <Database size={20} /> }
   ];
 
   return (
@@ -476,7 +557,10 @@ const CRM = () => {
             {sidebarOpen && (
               <div>
                 <h1 className="text-xl font-bold text-gray-800">CRM Pro</h1>
-                <p className="text-xs text-gray-500">v3.0.0 - SMTP Ready</p>
+                <div className="flex items-center space-x-2">
+                  <p className="text-xs text-gray-500">v4.0.0 - Database Ready</p>
+                  <div className={`w-2 h-2 rounded-full ${isDatabaseConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                </div>
               </div>
             )}
             <button
@@ -492,7 +576,13 @@ const CRM = () => {
           {sidebarItems.map(item => (
             <button
               key={item.id}
-              onClick={() => setActiveModule(item.id)}
+              onClick={() => {
+                if (item.id === 'database') {
+                  setShowDatabaseManager(true);
+                } else {
+                  setActiveModule(item.id);
+                }
+              }}
               className={`w-full flex items-center px-4 py-3 text-left hover:bg-gray-100 transition-colors ${
                 activeModule === item.id ? 'bg-blue-50 text-blue-600 border-r-2 border-blue-600' : 'text-gray-700'
               }`}
@@ -500,6 +590,11 @@ const CRM = () => {
             >
               <span className="mr-3">{item.icon}</span>
               {sidebarOpen && <span>{item.label}</span>}
+              {item.id === 'database' && !isDatabaseConnected && sidebarOpen && (
+                <span className="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-1">
+                  !
+                </span>
+              )}
               {item.id === 'emails' && emails.filter(e => !e.isRead).length > 0 && (
                 <span className="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-1">
                   {emails.filter(e => !e.isRead).length}
@@ -527,16 +622,22 @@ const CRM = () => {
                 </div>
               </div>
             )}
-            <div className="bg-green-50 rounded-lg p-3">
-              <p className="text-xs text-green-800 font-medium">📧 SMTP Ready!</p>
-              <p className="text-xs text-green-600 mt-1">
-                <button
-                  onClick={() => openModal('smtp-config')}
-                  className="underline hover:text-green-800"
-                >
-                  Configure SMTP
-                </button>
-              </p>
+            
+            <div className={`rounded-lg p-3 ${isDatabaseConnected ? 'bg-green-50' : 'bg-yellow-50'}`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className={`text-xs font-medium ${isDatabaseConnected ? 'text-green-800' : 'text-yellow-800'}`}>
+                    {isDatabaseConnected ? '🗄️ Database Online' : '⚠️ Database Offline'}
+                  </p>
+                  <button
+                    onClick={() => setShowDatabaseManager(true)}
+                    className={`text-xs underline hover:no-underline ${isDatabaseConnected ? 'text-green-600' : 'text-yellow-600'}`}
+                  >
+                    Manage Database
+                  </button>
+                </div>
+                <Database size={16} className={isDatabaseConnected ? 'text-green-600' : 'text-yellow-600'} />
+              </div>
             </div>
           </div>
         )}
@@ -585,6 +686,27 @@ const CRM = () => {
 
         {/* Content Area */}
         <main className="flex-1 overflow-auto p-6">
+          {/* Database connection warning */}
+          {!isDatabaseConnected && (
+            <div className="mb-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+              <div className="flex items-center">
+                <AlertCircle className="text-yellow-600 mr-3" size={20} />
+                <div className="flex-1">
+                  <p className="text-yellow-800 font-medium">Database Not Connected</p>
+                  <p className="text-yellow-700 text-sm">
+                    Your data is currently stored locally. Connect to a database for persistence across sessions.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowDatabaseManager(true)}
+                  className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 text-sm"
+                >
+                  Setup Database
+                </button>
+              </div>
+            </div>
+          )}
+
           {searchQuery && (
             <SearchResults 
               results={searchResults} 
@@ -593,7 +715,12 @@ const CRM = () => {
           )}
           
           {!searchQuery && activeModule === 'dashboard' && (
-            <Dashboard customers={customers} tasks={tasks} emails={emails} />
+            <Dashboard 
+              customers={customers} 
+              tasks={tasks} 
+              emails={emails} 
+              isDatabaseConnected={isDatabaseConnected}
+            />
           )}
           {!searchQuery && activeModule === 'customers' && (
             <CustomersModule 
@@ -635,6 +762,30 @@ const CRM = () => {
         </main>
       </div>
 
+      {/* Database Manager Modal */}
+      {showDatabaseManager && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-6xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-6 border-b">
+              <h3 className="text-lg font-semibold text-gray-900">Database Management</h3>
+              <button
+                onClick={() => setShowDatabaseManager(false)}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-6">
+              <DatabaseManager 
+                onClose={() => setShowDatabaseManager(false)} 
+                onConnectionChange={setIsDatabaseConnected}
+                isDatabaseConnected={isDatabaseConnected}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal */}
       {showModal && (
         <Modal onClose={closeModal}>
@@ -672,24 +823,297 @@ const CRM = () => {
               onClose={closeModal}
             />
           )}
-          {modalType === 'smtp-config' && (
-            <SMTPConfigForm
-              config={smtpConfig}
-              onSave={(config) => {
-                setSmtpConfig({ ...config, configured: true });
-                showNotification('SMTP configuration saved!');
-                closeModal();
-              }}
-            />
-          )}
         </Modal>
       )}
     </div>
   );
 };
 
+// Database Manager Component
+const DatabaseManager = ({ onClose, onConnectionChange, isDatabaseConnected }) => {
+  const [activeTab, setActiveTab] = useState('status');
+  const [isLoading, setIsLoading] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState(null);
+  const [exportData, setExportData] = useState({ table: 'customers', format: 'json' });
+
+  const testConnection = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/database/init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const result = await response.json();
+      setConnectionStatus(result);
+      
+      if (result.success) {
+        onConnectionChange(true);
+      }
+    } catch (error) {
+      setConnectionStatus({ 
+        success: false, 
+        message: 'Failed to connect to database',
+        error: error.message 
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleExport = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/database/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(exportData)
+      });
+
+      if (exportData.format === 'csv') {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${exportData.table}_export_${Date.now()}.csv`;
+        a.click();
+      } else {
+        const result = await response.json();
+        if (result.success) {
+          const dataStr = JSON.stringify(result, null, 2);
+          const blob = new Blob([dataStr], { type: 'application/json' });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${exportData.table}_export_${Date.now()}.json`;
+          a.click();
+        }
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBackup = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/database/backup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        const dataStr = JSON.stringify(result.backup, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `crm_backup_${Date.now()}.json`;
+        a.click();
+      }
+    } catch (error) {
+      console.error('Backup error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const tabs = [
+    { id: 'status', label: 'Status', icon: <Database size={18} /> },
+    { id: 'export', label: 'Export', icon: <Download size={18} /> },
+    { id: 'backup', label: 'Backup', icon: <Shield size={18} /> },
+  ];
+
+  return (
+    <div className="max-w-4xl mx-auto">
+      <div className="mb-6">
+        <h3 className="text-xl font-semibold text-gray-900 mb-2">Database Management</h3>
+        <p className="text-gray-600">Manage your CRM data persistence, exports, and backups</p>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="border-b mb-6">
+        <nav className="flex space-x-8">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
+                activeTab === tab.id
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              {tab.icon}
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'status' && (
+        <div className="space-y-6">
+          <div className="bg-white border rounded-lg p-6">
+            <h4 className="text-lg font-medium mb-4">Database Connection Status</h4>
+            
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <div className={`w-3 h-3 rounded-full ${isDatabaseConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <span className="font-medium">
+                  {isDatabaseConnected ? 'Connected to PostgreSQL' : 'Not Connected'}
+                </span>
+              </div>
+              
+              <button
+                onClick={testConnection}
+                disabled={isLoading}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center space-x-2"
+              >
+                {isLoading ? (
+                  <RefreshCw className="animate-spin" size={16} />
+                ) : (
+                  <Database size={16} />
+                )}
+                <span>Test Connection</span>
+              </button>
+            </div>
+
+            {connectionStatus && (
+              <div className={`p-4 rounded-lg mb-4 ${
+                connectionStatus.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+              }`}>
+                <p className="font-medium">
+                  {connectionStatus.success ? '✅ Success!' : '❌ Error'}
+                </p>
+                <p className="text-sm mt-1">{connectionStatus.message}</p>
+                {connectionStatus.error && (
+                  <p className="text-xs mt-2 font-mono">{connectionStatus.error}</p>
+                )}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-gray-500">Database Type:</span>
+                <span className="ml-2 font-medium">PostgreSQL</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Platform:</span>
+                <span className="ml-2 font-medium">Vercel Serverless</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h5 className="font-medium text-blue-800 mb-2">Setup Instructions:</h5>
+            <ol className="text-sm text-blue-700 space-y-1">
+              <li>1. Set up PostgreSQL database (Vercel Postgres, Neon, or Supabase)</li>
+              <li>2. Add DATABASE_URL environment variable in Vercel</li>
+              <li>3. Test connection to initialize database tables</li>
+              <li>4. Import existing data or start fresh</li>
+            </ol>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'export' && (
+        <div className="space-y-6">
+          <div className="bg-white border rounded-lg p-6">
+            <h4 className="text-lg font-medium mb-4">Export Data</h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Table</label>
+                <select
+                  value={exportData.table}
+                  onChange={(e) => setExportData({ ...exportData, table: e.target.value })}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                >
+                  <option value="customers">Customers</option>
+                  <option value="tasks">Tasks</option>
+                  <option value="emails">Emails</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Export Format</label>
+                <select
+                  value={exportData.format}
+                  onChange={(e) => setExportData({ ...exportData, format: e.target.value })}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                >
+                  <option value="json">JSON</option>
+                  <option value="csv">CSV</option>
+                </select>
+              </div>
+            </div>
+
+            <button
+              onClick={handleExport}
+              disabled={isLoading || !isDatabaseConnected}
+              className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center space-x-2"
+            >
+              {isLoading ? (
+                <RefreshCw className="animate-spin" size={16} />
+              ) : (
+                <Download size={16} />
+              )}
+              <span>Export {exportData.table}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'backup' && (
+        <div className="space-y-6">
+          <div className="bg-white border rounded-lg p-6">
+            <h4 className="text-lg font-medium mb-4">Database Backup</h4>
+            
+            <div className="space-y-4">
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h5 className="font-medium text-gray-800 mb-2">Full Database Backup</h5>
+                <p className="text-sm text-gray-600 mb-4">
+                  Creates a complete backup of all your CRM data including customers, tasks, emails, and templates.
+                </p>
+                
+                <button
+                  onClick={handleBackup}
+                  disabled={isLoading || !isDatabaseConnected}
+                  className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center space-x-2"
+                >
+                  {isLoading ? (
+                    <RefreshCw className="animate-spin" size={16} />
+                  ) : (
+                    <Shield size={16} />
+                  )}
+                  <span>Create Full Backup</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Close Button */}
+      <div className="flex justify-end pt-6 border-t">
+        <button
+          onClick={onClose}
+          className="px-6 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+};
+
 // Dashboard Component
-const Dashboard = ({ customers, tasks, emails }) => {
+const Dashboard = ({ customers, tasks, emails, isDatabaseConnected }) => {
   const stats = {
     totalCustomers: customers.length,
     activeDeals: customers.filter(c => c.status === 'Active').length,
@@ -697,7 +1121,7 @@ const Dashboard = ({ customers, tasks, emails }) => {
     unreadEmails: emails.filter(e => !e.isRead).length,
     totalRevenue: customers.reduce((sum, c) => sum + c.orderValue, 0),
     sentEmails: emails.filter(e => e.type === 'outgoing').length,
-    emailResponseRate: 75
+    databaseStatus: isDatabaseConnected ? 'Connected' : 'Offline'
   };
 
   const recentEmails = emails.slice(0, 5);
@@ -725,37 +1149,37 @@ const Dashboard = ({ customers, tasks, emails }) => {
           color="red"
         />
         <DashboardCard 
-          title="Sent Emails" 
-          value={stats.sentEmails} 
-          icon={<Send />} 
-          color="green"
+          title="Database" 
+          value={stats.databaseStatus} 
+          icon={<Database />} 
+          color={isDatabaseConnected ? "green" : "red"}
         />
       </div>
 
-      {/* Email Features Showcase */}
+      {/* Database Features Showcase */}
       <div className="bg-white rounded-lg shadow p-6">
-        <h3 className="text-lg font-semibold mb-4 text-gray-900">📧 SMTP Email Features</h3>
+        <h3 className="text-lg font-semibold mb-4 text-gray-900">🗄️ Database Features</h3>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="p-4 bg-blue-50 rounded-lg">
             <div className="flex items-center mb-3">
-              <Send className="text-blue-600 mr-2" size={20} />
-              <h4 className="font-medium text-blue-800">Send Emails</h4>
+              <Database className="text-blue-600 mr-2" size={20} />
+              <h4 className="font-medium text-blue-800">PostgreSQL Storage</h4>
             </div>
-            <p className="text-sm text-blue-700">Send emails directly to customers with templates and attachments</p>
+            <p className="text-sm text-blue-700">Persistent data storage with ACID compliance and automatic backups</p>
           </div>
           <div className="p-4 bg-green-50 rounded-lg">
             <div className="flex items-center mb-3">
-              <Clock className="text-green-600 mr-2" size={20} />
-              <h4 className="font-medium text-green-800">Queue Management</h4>
+              <Download className="text-green-600 mr-2" size={20} />
+              <h4 className="font-medium text-green-800">Export/Import</h4>
             </div>
-            <p className="text-sm text-green-700">Queue emails for batch sending and better deliverability</p>
+            <p className="text-sm text-green-700">JSON and CSV data export/import capabilities for data portability</p>
           </div>
           <div className="p-4 bg-purple-50 rounded-lg">
             <div className="flex items-center mb-3">
-              <FileText className="text-purple-600 mr-2" size={20} />
-              <h4 className="font-medium text-purple-800">Email Templates</h4>
+              <Shield className="text-purple-600 mr-2" size={20} />
+              <h4 className="font-medium text-purple-800">Backup & Restore</h4>
             </div>
-            <p className="text-sm text-purple-700">Use pre-built templates for consistent communication</p>
+            <p className="text-sm text-purple-700">Complete database backup and restore functionality for data safety</p>
           </div>
         </div>
       </div>
@@ -2018,243 +2442,6 @@ const TaskForm = ({ task, customers, staffMembers, onSubmit }) => {
         </button>
       </div>
     </form>
-  );
-};
-
-// SMTP Config Form Component with Enhanced Error Handling
-const SMTPConfigForm = ({ config, onSave }) => {
-  const [formData, setFormData] = useState({
-    host: config?.host || '',
-    port: config?.port || 587,
-    secure: config?.secure || false,
-    user: config?.user || '',
-    password: ''
-  });
-
-  const [isLoading, setIsLoading] = useState(false);
-  const [testResult, setTestResult] = useState(null);
-
-  const handleTest = async () => {
-    if (!formData.host || !formData.user || !formData.password) {
-      setTestResult({ 
-        success: false, 
-        message: 'Please fill in Host, Email, and Password fields' 
-      });
-      return;
-    }
-
-    setIsLoading(true);
-    setTestResult(null);
-
-    try {
-      console.log('Starting SMTP test...');
-      
-      const response = await fetch('/api/test-smtp.js', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          config: formData,
-          testEmail: formData.user
-        })
-      });
-
-      console.log('Response status:', response.status);
-      console.log('Response URL:', response.url);
-
-      // Check if we got a proper response
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('API Error Response:', errorText);
-        
-        // Try to parse as JSON, but fallback to text
-        let errorMessage;
-        try {
-          const errorJson = JSON.parse(errorText);
-          errorMessage = errorJson.message || errorJson.error || 'Unknown API error';
-        } catch {
-          errorMessage = `API Error (${response.status}): ${errorText.substring(0, 200)}`;
-        }
-        
-        throw new Error(errorMessage);
-      }
-
-      // Check content type before parsing
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const textResponse = await response.text();
-        console.error('Non-JSON response:', textResponse);
-        throw new Error(`API returned HTML instead of JSON. This usually means the API endpoint is not found or there's a server error.`);
-      }
-
-      const result = await response.json();
-      console.log('SMTP test result:', result);
-      setTestResult(result);
-
-    } catch (error) {
-      console.error('SMTP test error:', error);
-      
-      let friendlyMessage = error.message;
-      
-      // Handle specific error types
-      if (error.message.includes('Failed to fetch')) {
-        friendlyMessage = 'Network error: Cannot reach the API. Check if your Vercel deployment is working.';
-      } else if (error.message.includes('not valid JSON')) {
-        friendlyMessage = 'Server error: API endpoint not found or misconfigured.';
-      } else if (error.message.includes('NetworkError')) {
-        friendlyMessage = 'Network error: Check your internet connection.';
-      }
-      
-      setTestResult({
-        success: false,
-        message: friendlyMessage,
-        details: error.message
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onSave(formData);
-  };
-
-  return (
-    <div className="max-w-2xl mx-auto">
-      <h3 className="text-xl font-semibold mb-4">SMTP Configuration</h3>
-      
-      {/* Debug Info */}
-      <div className="mb-4 p-3 bg-blue-50 rounded-lg">
-        <p className="text-sm text-blue-800">
-          <strong>Debug Info:</strong> Testing API endpoint at <code>/api/test-smtp</code>
-        </p>
-        <p className="text-xs text-blue-600 mt-1">
-          If you see JSON errors, check your Vercel Functions tab to ensure the API is deployed.
-        </p>
-      </div>
-      
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">SMTP Host *</label>
-            <input
-              type="text"
-              value={formData.host}
-              onChange={(e) => setFormData({ ...formData, host: e.target.value })}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="smtp.gmail.com"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Port</label>
-            <input
-              type="number"
-              value={formData.port}
-              onChange={(e) => setFormData({ ...formData, port: parseInt(e.target.value) })}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="587"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Username/Email *</label>
-            <input
-              type="email"
-              value={formData.user}
-              onChange={(e) => setFormData({ ...formData, user: e.target.value })}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="your-email@gmail.com"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
-            <input
-              type="password"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              placeholder="Your app password (16 characters)"
-            />
-            <p className="text-xs text-gray-500 mt-1">
-              For Gmail: Use an App Password, not your regular password
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center">
-          <input
-            type="checkbox"
-            id="secure"
-            checked={formData.secure}
-            onChange={(e) => setFormData({ ...formData, secure: e.target.checked })}
-            className="mr-2"
-          />
-          <label htmlFor="secure" className="text-sm text-gray-700">
-            Use secure connection (SSL/TLS) - Usually false for port 587
-          </label>
-        </div>
-
-        {testResult && (
-          <div className={`p-4 rounded-lg ${
-            testResult.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
-          }`}>
-            <p className="font-medium">
-              {testResult.success ? '✅ Test Successful!' : '❌ Test Failed'}
-            </p>
-            <p className="text-sm mt-1">{testResult.message}</p>
-            {testResult.details && testResult.details !== testResult.message && (
-              <details className="mt-2">
-                <summary className="text-xs cursor-pointer">Technical Details</summary>
-                <pre className="text-xs mt-1 p-2 bg-gray-100 rounded overflow-auto">
-                  {testResult.details}
-                </pre>
-              </details>
-            )}
-          </div>
-        )}
-
-        <div className="flex justify-between pt-4">
-          <button
-            type="button"
-            onClick={handleTest}
-            disabled={isLoading}
-            className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 disabled:opacity-50 flex items-center"
-          >
-            {isLoading ? (
-              <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                Testing Connection...
-              </>
-            ) : (
-              '🧪 Test Configuration'
-            )}
-          </button>
-
-          <button
-            type="submit"
-            className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 flex items-center"
-          >
-            <Save size={16} className="mr-2" />
-            Save Configuration
-          </button>
-        </div>
-      </form>
-
-      {/* Troubleshooting Tips */}
-      <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-        <h4 className="font-medium text-gray-900 mb-2">Troubleshooting Tips:</h4>
-        <ul className="text-sm text-gray-600 space-y-1">
-          <li>• Check that your API files are deployed in Vercel Functions</li>
-          <li>• For Gmail: Enable 2FA and create an App Password</li>
-          <li>• Use port 587 with secure = false for most providers</li>
-          <li>• Check Vercel function logs for detailed error messages</li>
-        </ul>
-      </div>
-    </div>
   );
 };
 
