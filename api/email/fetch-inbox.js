@@ -1,7 +1,4 @@
-// api/email/fetch-inbox.js - IMAP email fetching service
-import { ImapFlow } from 'imapflow';
-import { EmailDAO } from '../../lib/database.js';
-
+// api/email/fetch-inbox.js - Fixed IMAP email fetching service
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, GET, OPTIONS',
@@ -25,6 +22,8 @@ export default async function handler(req, res) {
   }
 
   try {
+    console.log('Starting IMAP fetch process...');
+
     // Check IMAP configuration
     const imapConfig = {
       host: process.env.IMAP_HOST,
@@ -36,10 +35,23 @@ export default async function handler(req, res) {
       }
     };
 
+    console.log('IMAP Config:', {
+      host: imapConfig.host,
+      port: imapConfig.port,
+      secure: imapConfig.secure,
+      user: imapConfig.auth.user,
+      hasPassword: !!imapConfig.auth.pass
+    });
+
     if (!imapConfig.host || !imapConfig.auth.user || !imapConfig.auth.pass) {
       return res.status(400).json({
         success: false,
-        message: 'IMAP not configured. Please set IMAP_HOST, IMAP_USER, and IMAP_PASSWORD environment variables.',
+        message: 'IMAP not configured. Please set IMAP environment variables.',
+        missingVars: {
+          IMAP_HOST: !imapConfig.host,
+          IMAP_USER: !imapConfig.auth.user,
+          IMAP_PASSWORD: !imapConfig.auth.pass
+        },
         setupInstructions: {
           step1: 'Go to Vercel Dashboard → Your Project → Settings → Environment Variables',
           step2: 'Add IMAP_HOST (e.g., imap.gmail.com)',
@@ -52,140 +64,174 @@ export default async function handler(req, res) {
       });
     }
 
+    // Try to import ImapFlow
+    let ImapFlow;
+    try {
+      const imapModule = await import('imapflow');
+      ImapFlow = imapModule.ImapFlow;
+      console.log('ImapFlow imported successfully');
+    } catch (importError) {
+      console.error('Failed to import ImapFlow:', importError);
+      return res.status(500).json({
+        success: false,
+        message: 'IMAP library not available. Please install imapflow package.',
+        error: importError.message,
+        solution: 'Run: npm install imapflow'
+      });
+    }
+
     const { folderName = 'INBOX', limit = 50, since } = req.body;
 
     console.log('Connecting to IMAP server...');
     const client = new ImapFlow(imapConfig);
-    await client.connect();
-
-    console.log('Selecting mailbox:', folderName);
-    const mailbox = await client.getMailboxLock(folderName);
 
     try {
-      // Build search criteria
-      let searchCriteria = ['ALL'];
-      if (since) {
-        const sinceDate = new Date(since);
-        searchCriteria = ['SINCE', sinceDate];
-      }
+      await client.connect();
+      console.log('Connected to IMAP server successfully');
 
-      // Fetch message UIDs
-      const messages = client.fetch(searchCriteria, {
-        uid: true,
-        flags: true,
-        envelope: true,
-        bodyStructure: true,
-        size: true,
-        internalDate: true
-      }, { uid: true });
+      console.log('Selecting mailbox:', folderName);
+      const mailbox = await client.getMailboxLock(folderName);
 
-      const emailsProcessed = [];
-      const errors = [];
-      let processedCount = 0;
+      try {
+        // Build search criteria
+        let searchCriteria = ['ALL'];
+        if (since) {
+          const sinceDate = new Date(since);
+          searchCriteria = ['SINCE', sinceDate];
+        }
 
-      for await (let message of messages) {
-        if (processedCount >= limit) break;
-        
-        try {
-          // Get message body
-          const bodyParts = await client.download(message.uid, '1', { uid: true });
-          let bodyText = '';
+        console.log('Searching for messages with criteria:', searchCriteria);
+
+        // Fetch message UIDs
+        const messages = client.fetch(searchCriteria, {
+          uid: true,
+          flags: true,
+          envelope: true,
+          bodyStructure: true,
+          size: true,
+          internalDate: true
+        }, { uid: true });
+
+        const emailsProcessed = [];
+        const errors = [];
+        let processedCount = 0;
+
+        console.log('Processing messages...');
+        for await (let message of messages) {
+          if (processedCount >= limit) break;
           
-          if (bodyParts) {
-            bodyText = bodyParts.toString('utf8');
+          try {
+            console.log(`Processing message ${processedCount + 1}/${limit}`);
+
+            // Get message body
+            let bodyText = '';
+            try {
+              const bodyParts = await client.download(message.uid, '1', { uid: true });
+              if (bodyParts) {
+                bodyText = bodyParts.toString('utf8');
+              }
+            } catch (bodyError) {
+              console.warn('Could not fetch body for message:', bodyError.message);
+              bodyText = 'Could not fetch message body';
+            }
+
+            // Extract email data
+            const emailData = {
+              uid: message.uid,
+              subject: message.envelope.subject || '(No Subject)',
+              from: message.envelope.from?.[0]?.address || '',
+              fromName: message.envelope.from?.[0]?.name || '',
+              to: message.envelope.to?.[0]?.address || '',
+              cc: message.envelope.cc?.map(addr => addr.address).join(', ') || '',
+              bcc: message.envelope.bcc?.map(addr => addr.address).join(', ') || '',
+              body: bodyText.substring(0, 5000), // Limit body size
+              isRead: message.flags.has('\\Seen'),
+              isStarred: message.flags.has('\\Flagged'),
+              messageId: message.envelope.messageId || null,
+              date: message.internalDate,
+              size: message.size,
+              attachmentCount: message.bodyStructure?.childNodes?.filter(node => 
+                node.disposition === 'attachment'
+              ).length || 0
+            };
+
+            emailsProcessed.push(emailData);
+            processedCount++;
+            
+          } catch (emailError) {
+            console.error('Error processing email:', emailError);
+            errors.push({
+              uid: message.uid,
+              error: emailError.message
+            });
           }
-
-          // Extract email data
-          const emailData = {
-            customer_id: null, // Will be matched later
-            customer_name: message.envelope.from?.[0]?.name || 'Unknown',
-            subject: message.envelope.subject || '(No Subject)',
-            from_email: message.envelope.from?.[0]?.address || '',
-            to_email: message.envelope.to?.[0]?.address || '',
-            cc_email: message.envelope.cc?.map(addr => addr.address).join(', ') || null,
-            bcc_email: message.envelope.bcc?.map(addr => addr.address).join(', ') || null,
-            body: bodyText,
-            type: 'incoming',
-            status: 'received',
-            priority: 'normal',
-            is_read: message.flags.has('\\Seen'),
-            is_starred: message.flags.has('\\Flagged'),
-            thread_id: message.envelope.messageId || null,
-            smtp_message_id: message.envelope.messageId,
-            received_at: message.internalDate.toISOString(),
-            attachments: message.bodyStructure?.childNodes?.length > 1 ? 
-              message.bodyStructure.childNodes.filter(node => node.disposition === 'attachment') : []
-          };
-
-          // Try to match with existing customer
-          const matchingCustomer = await findCustomerByEmail(emailData.from_email);
-          if (matchingCustomer) {
-            emailData.customer_id = matchingCustomer.id;
-            emailData.customer_name = matchingCustomer.name;
-          }
-
-          // Check for duplicates
-          const isDuplicate = await EmailDAO.checkDuplicate(emailData);
-          if (isDuplicate) {
-            console.log(`Skipping duplicate email: ${emailData.subject}`);
-            continue;
-          }
-
-          // Save to database
-          const savedEmail = await EmailDAO.create(emailData);
-          emailsProcessed.push({
-            id: savedEmail.id,
-            subject: emailData.subject,
-            from: emailData.from_email,
-            received: emailData.received_at
-          });
-
-          processedCount++;
-        } catch (emailError) {
-          console.error('Error processing email:', emailError);
-          errors.push({
-            uid: message.uid,
-            error: emailError.message
-          });
         }
+
+        console.log(`Successfully processed ${emailsProcessed.length} emails`);
+
+        return res.status(200).json({
+          success: true,
+          message: `Fetched ${emailsProcessed.length} emails from ${folderName}`,
+          emails: emailsProcessed,
+          errors,
+          stats: {
+            totalProcessed: emailsProcessed.length,
+            errorsCount: errors.length,
+            folder: folderName,
+            limit,
+            mailboxInfo: {
+              exists: mailbox.exists,
+              recent: mailbox.recent,
+              unseen: mailbox.unseen
+            }
+          },
+          timestamp: new Date().toISOString()
+        });
+
+      } finally {
+        mailbox.release();
       }
-
-      return res.status(200).json({
-        success: true,
-        message: `Processed ${emailsProcessed.length} new emails`,
-        emailsProcessed,
-        errors,
-        stats: {
-          totalProcessed: emailsProcessed.length,
-          errorsCount: errors.length,
-          folder: folderName,
-          limit
-        }
-      });
 
     } finally {
-      mailbox.release();
       await client.logout();
+      console.log('Disconnected from IMAP server');
     }
 
   } catch (error) {
     console.error('IMAP fetch error:', error);
+    
+    // Handle specific IMAP errors
+    let friendlyMessage = 'Failed to fetch emails from inbox';
+    let suggestions = [];
+    
+    if (error.code === 'ECONNREFUSED') {
+      friendlyMessage = 'Cannot connect to IMAP server';
+      suggestions.push('Check IMAP_HOST setting');
+      suggestions.push('Verify firewall/network settings');
+    } else if (error.code === 'ENOTFOUND') {
+      friendlyMessage = 'IMAP server not found';
+      suggestions.push('Check IMAP_HOST spelling');
+    } else if (error.message.includes('Invalid credentials') || error.message.includes('authentication')) {
+      friendlyMessage = 'Authentication failed';
+      suggestions.push('Check IMAP_USER and IMAP_PASSWORD');
+      suggestions.push('For Gmail: Use App Password, not regular password');
+      suggestions.push('Enable 2-Factor Authentication and generate App Password');
+    } else if (error.message.includes('TLS') || error.message.includes('SSL')) {
+      friendlyMessage = 'Secure connection failed';
+      suggestions.push('Check IMAP_SECURE setting');
+      suggestions.push('Try IMAP_PORT=993 with IMAP_SECURE=true');
+    }
+
     return res.status(500).json({
       success: false,
-      message: 'Failed to fetch emails from inbox',
-      details: error.message
+      message: friendlyMessage,
+      details: error.message,
+      code: error.code,
+      suggestions,
+      debug: {
+        errorType: error.constructor.name,
+        stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+      }
     });
-  }
-}
-
-// Helper function to find customer by email
-async function findCustomerByEmail(email) {
-  try {
-    const { CustomerDAO } = await import('../../lib/database.js');
-    const customers = await CustomerDAO.findAll({ search: email });
-    return customers.find(c => c.email.toLowerCase() === email.toLowerCase()) || null;
-  } catch (error) {
-    console.error('Error finding customer:', error);
-    return null;
   }
 }
