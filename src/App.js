@@ -1,607 +1,4 @@
-// Database Manager Component
-const DatabaseManager = ({ onClose, onConnectionChange, isDatabaseConnected }) => {
-  const [activeTab, setActiveTab] = useState('status');
-  const [isLoading, setIsLoading] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState(null);
-  const [exportData, setExportData] = useState({ table: 'customers', format: 'json' });
-
-  const testConnection = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch('/api/database/init', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      
-      const result = await response.json();
-      setConnectionStatus(result);
-      
-      if (result.success) {
-        onConnectionChange(true);
-      }
-    } catch (error) {
-      setConnectionStatus({ 
-        success: false, 
-        message: 'Failed to connect to database',
-        error: error.message 
-      });
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleExport = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch('/api/database/export', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(exportData)
-      });
-
-      if (exportData.format === 'csv') {
-        const blob = await response.blob();
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `${exportData.table}_export_${Date.now()}.csv`;
-        a.click();
-      } else {
-        const result = await response.json();
-        if (result.success) {
-          const dataStr = JSON.stringify(result, null, 2);
-          const blob = new Blob([dataStr], { type: 'application/json' });
-          const url = window.URL.createObjectURL(blob);
-          const a = document.createElement('a');
-          a.href = url;
-          a.download = `${exportData.table}_export_${Date.now()}.json`;
-          a.click();
-        }
-      }
-    } catch (error) {
-      console.error('Export error:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleBackup = async () => {
-    setIsLoading(true);
-    try {
-      const response = await fetch('/api/database/backup', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' }
-      });
-      
-      const result = await response.json();
-      
-      if (result.success) {
-        const dataStr = JSON.stringify(result.backup, null, 2);
-        const blob = new Blob([dataStr], { type: 'application/json' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `crm_backup_${Date.now()}.json`;
-        a.click();
-      }
-    } catch (error) {
-      console.error('Backup error:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const tabs = [
-    { id: 'status', label: 'Status', icon: <Database size={18} /> },
-    { id: 'export', label: 'Export', icon: <Download size={18} /> },
-    { id: 'backup', label: 'Backup', icon: <Shield size={18} /> },
-  ];
-
-  return (
-    <div className="max-w-4xl mx-auto">
-      <div className="mb-6">
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">Database Management</h3>
-        <p className="text-gray-600">Manage your CRM data persistence, exports, and backups</p>
-      </div>
-
-      {/* Tab Navigation */}
-      <div className="border-b mb-6">
-        <nav className="flex space-x-8">
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
-                activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-              }`}
-            >
-              {tab.icon}
-              <span>{tab.label}</span>
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      {/* Tab Content */}
-      {activeTab === 'status' && (
-        <div className="space-y-6">
-          <div className="bg-white border rounded-lg p-6">
-            <h4 className="text-lg font-medium mb-4">Database Connection Status</h4>
-            
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center space-x-3">
-                <div className={`w-3 h-3 rounded-full ${isDatabaseConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
-                <span className="font-medium">
-                  {isDatabaseConnected ? 'Connected to PostgreSQL' : 'Not Connected'}
-                </span>
-              </div>
-              
-              <button
-                onClick={testConnection}
-                disabled={isLoading}
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center space-x-2"
-              >
-                {isLoading ? (
-                  <RefreshCw className="animate-spin" size={16} />
-                ) : (
-                  <Database size={16} />
-                )}
-                <span>Test Connection</span>
-              </button>
-            </div>
-
-            {connectionStatus && (
-              <div className={`p-4 rounded-lg mb-4 ${
-                connectionStatus.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
-              }`}>
-                <p className="font-medium">
-                  {connectionStatus.success ? '✅ Success!' : '❌ Error'}
-                </p>
-                <p className="text-sm mt-1">{connectionStatus.message}</p>
-                {connectionStatus.error && (
-                  <p className="text-xs mt-2 font-mono">{connectionStatus.error}</p>
-                )}
-              </div>
-            )}
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div>
-                <span className="text-gray-500">Database Type:</span>
-                <span className="ml-2 font-medium">PostgreSQL</span>
-              </div>
-              <div>
-                <span className="text-gray-500">Platform:</span>
-                <span className="ml-2 font-medium">Vercel Serverless</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-            <h5 className="font-medium text-blue-800 mb-2">Setup Instructions:</h5>
-            <ol className="text-sm text-blue-700 space-y-1">
-              <li>1. Set up PostgreSQL database (Vercel Postgres, Neon, or Supabase)</li>
-              <li>2. Add DATABASE_URL environment variable in Vercel</li>
-              <li>3. Test connection to initialize database tables</li>
-              <li>4. Import existing data or start fresh</li>
-            </ol>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'export' && (
-        <div className="space-y-6">
-          <div className="bg-white border rounded-lg p-6">
-            <h4 className="text-lg font-medium mb-4">Export Data</h4>
-            
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Select Table</label>
-                <select
-                  value={exportData.table}
-                  onChange={(e) => setExportData({ ...exportData, table: e.target.value })}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2"
-                >
-                  <option value="customers">Customers</option>
-                  <option value="tasks">Tasks</option>
-                  <option value="emails">Emails</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Export Format</label>
-                <select
-                  value={exportData.format}
-                  onChange={(e) => setExportData({ ...exportData, format: e.target.value })}
-                  className="w-full border border-gray-300 rounded-md px-3 py-2"
-                >
-                  <option value="json">JSON</option>
-                  <option value="csv">CSV</option>
-                </select>
-              </div>
-            </div>
-
-            <button
-              onClick={handleExport}
-              disabled={isLoading || !isDatabaseConnected}
-              className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center space-x-2"
-            >
-              {isLoading ? (
-                <RefreshCw className="animate-spin" size={16} />
-              ) : (
-                <Download size={16} />
-              )}
-              <span>Export {exportData.table}</span>
-            </button>
-          </div>
-        </div>
-      )}
-
-      {activeTab === 'backup' && (
-        <div className="space-y-6">
-          <div className="bg-white border rounded-lg p-6">
-            <h4 className="text-lg font-medium mb-4">Database Backup</h4>
-            
-            <div className="space-y-4">
-              <div className="bg-gray-50 rounded-lg p-4">
-                <h5 className="font-medium text-gray-800 mb-2">Full Database Backup</h5>
-                <p className="text-sm text-gray-600 mb-4">
-                  Creates a complete backup of all your CRM data including customers, tasks, emails, and templates.
-                </p>
-                
-                <button
-                  onClick={handleBackup}
-                  disabled={isLoading || !isDatabaseConnected}
-                  className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center space-x-2"
-                >
-                  {isLoading ? (
-                    <RefreshCw className="animate-spin" size={16} />
-                  ) : (
-                    <Shield size={16} />
-                  )}
-                  <span>Create Full Backup</span>
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Close Button */}
-      <div className="flex justify-end pt-6 border-t">
-        <button
-          onClick={onClose}
-          className="px-6 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
-        >
-          Close
-        </button>
-      </div>
-    </div>
-  );
-};
-
-// Modal Component
-const Modal = ({ children, onClose }) => {
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between p-6 border-b">
-          <h3 className="text-lg font-semibold text-gray-900">Modal</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 transition-colors"
-          >
-            <X size={24} />
-          </button>
-        </div>
-        <div className="p-6">
-          {children}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Customer Form Component
-const CustomerForm = ({ customer, onSubmit }) => {
-  const [formData, setFormData] = useState({
-    name: customer?.name || '',
-    email: customer?.email || '',
-    phone: customer?.phone || '',
-    company: customer?.company || '',
-    address: customer?.address || '',
-    status: customer?.status || 'Lead',
-    orderValue: customer?.orderValue || 0,
-    tags: customer?.tags?.join(', ') || ''
-  });
-
-  const [errors, setErrors] = useState({});
-
-  const validateForm = () => {
-    const newErrors = {};
-    if (!formData.name.trim()) newErrors.name = 'Name is required';
-    if (!formData.email.trim()) newErrors.email = 'Email is required';
-    if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
-      newErrors.email = 'Email is invalid';
-    }
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (validateForm()) {
-      onSubmit(formData);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <h3 className="text-lg font-semibold mb-4">
-        {customer ? 'Edit Customer' : 'Add New Customer'}
-      </h3>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
-          <input
-            type="text"
-            value={formData.name}
-            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.name ? 'border-red-500' : 'border-gray-300'
-            }`}
-          />
-          {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
-          <input
-            type="email"
-            value={formData.email}
-            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.email ? 'border-red-500' : 'border-gray-300'
-            }`}
-          />
-          {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
-          <input
-            type="tel"
-            value={formData.phone}
-            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
-          <input
-            type="text"
-            value={formData.company}
-            onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-          <select
-            value={formData.status}
-            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="Lead">Lead</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Order Value ($)</label>
-          <input
-            type="number"
-            value={formData.orderValue}
-            onChange={(e) => setFormData({ ...formData, orderValue: e.target.value })}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            min="0"
-            step="0.01"
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
-        <textarea
-          value={formData.address}
-          onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-          rows={2}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Tags (comma separated)</label>
-        <input
-          type="text"
-          value={formData.tags}
-          onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="VIP, Enterprise, Hot Lead"
-        />
-      </div>
-
-      <div className="flex justify-end space-x-3 pt-4">
-        <button
-          type="submit"
-          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 flex items-center transition-colors"
-        >
-          <Save size={16} className="mr-2" />
-          {customer ? 'Update Customer' : 'Add Customer'}
-        </button>
-      </div>
-    </form>
-  );
-};
-
-// Task Form Component
-const TaskForm = ({ task, customers, staffMembers, onSubmit }) => {
-  const [formData, setFormData] = useState({
-    title: task?.title || '',
-    description: task?.description || '',
-    customerId: task?.customerId || '',
-    assignedTo: task?.assignedTo || '',
-    priority: task?.priority || 'Medium',
-    dueDate: task?.dueDate || '',
-    tags: task?.tags?.join(', ') || ''
-  });
-
-  const [errors, setErrors] = useState({});
-
-  const validateForm = () => {
-    const newErrors = {};
-    if (!formData.title.trim()) newErrors.title = 'Title is required';
-    if (!formData.customerId) newErrors.customerId = 'Customer is required';
-    if (!formData.assignedTo) newErrors.assignedTo = 'Assigned to is required';
-    if (!formData.dueDate) newErrors.dueDate = 'Due date is required';
-    
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    if (validateForm()) {
-      onSubmit(formData);
-    }
-  };
-
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <h3 className="text-lg font-semibold mb-4">
-        {task ? 'Edit Task' : 'Create New Task'}
-      </h3>
-      
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
-        <input
-          type="text"
-          value={formData.title}
-          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-          className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-            errors.title ? 'border-red-500' : 'border-gray-300'
-          }`}
-        />
-        {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title}</p>}
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-        <textarea
-          value={formData.description}
-          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-          rows={3}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-      </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Customer *</label>
-          <select
-            value={formData.customerId}
-            onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
-            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.customerId ? 'border-red-500' : 'border-gray-300'
-            }`}
-          >
-            <option value="">Select Customer</option>
-            {customers.map(customer => (
-              <option key={customer.id} value={customer.id}>
-                {customer.name} ({customer.company})
-              </option>
-            ))}
-          </select>
-          {errors.customerId && <p className="text-red-500 text-sm mt-1">{errors.customerId}</p>}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Assigned To *</label>
-          <select
-            value={formData.assignedTo}
-            onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
-            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.assignedTo ? 'border-red-500' : 'border-gray-300'
-            }`}
-          >
-            <option value="">Select Staff Member</option>
-            {staffMembers.map(staff => (
-              <option key={staff.id} value={staff.name}>
-                {staff.name} ({staff.role})
-              </option>
-            ))}
-          </select>
-          {errors.assignedTo && <p className="text-red-500 text-sm mt-1">{errors.assignedTo}</p>}
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
-          <select
-            value={formData.priority}
-            onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
-            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="Low">Low</option>
-            <option value="Medium">Medium</option>
-            <option value="High">High</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Due Date *</label>
-          <input
-            type="date"
-            value={formData.dueDate}
-            onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
-            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
-              errors.dueDate ? 'border-red-500' : 'border-gray-300'
-            }`}
-          />
-          {errors.dueDate && <p className="text-red-500 text-sm mt-1">{errors.dueDate}</p>}
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Tags (comma separated)</label>
-        <input
-          type="text"
-          value={formData.tags}
-          onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
-          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          placeholder="Sales, Follow-up, Demo"
-        />
-      </div>
-
-      <div className="flex justify-end space-x-3 pt-4">
-        <button
-          type="submit"
-          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 flex items-center transition-colors"
-        >
-          <Save size={16} className="mr-2" />
-          {task ? 'Update Task' : 'Create Task'}
-        </button>
-      </div>
-    </form>
-  );
-};
-
-export default CRM;// src/App.js - Complete CRM WebApp with Enhanced Email Integration
+// src/App.js - Complete CRM WebApp with Enhanced Email Integration
 import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Search, Users, CheckSquare, Mail, Building, Settings, Menu, X, Eye, FileText,
@@ -3064,3 +2461,608 @@ const ComposeEmailForm = ({
     </div>
   );
 };
+
+// Database Manager Component
+const DatabaseManager = ({ onClose, onConnectionChange, isDatabaseConnected }) => {
+  const [activeTab, setActiveTab] = useState('status');
+  const [isLoading, setIsLoading] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState(null);
+  const [exportData, setExportData] = useState({ table: 'customers', format: 'json' });
+
+  const testConnection = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/database/init', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const result = await response.json();
+      setConnectionStatus(result);
+      
+      if (result.success) {
+        onConnectionChange(true);
+      }
+    } catch (error) {
+      setConnectionStatus({ 
+        success: false, 
+        message: 'Failed to connect to database',
+        error: error.message 
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleExport = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/database/export', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(exportData)
+      });
+
+      if (exportData.format === 'csv') {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${exportData.table}_export_${Date.now()}.csv`;
+        a.click();
+      } else {
+        const result = await response.json();
+        if (result.success) {
+          const dataStr = JSON.stringify(result, null, 2);
+          const blob = new Blob([dataStr], { type: 'application/json' });
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `${exportData.table}_export_${Date.now()}.json`;
+          a.click();
+        }
+      }
+    } catch (error) {
+      console.error('Export error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleBackup = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/database/backup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      const result = await response.json();
+      
+      if (result.success) {
+        const dataStr = JSON.stringify(result.backup, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `crm_backup_${Date.now()}.json`;
+        a.click();
+      }
+    } catch (error) {
+      console.error('Backup error:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const tabs = [
+    { id: 'status', label: 'Status', icon: <Database size={18} /> },
+    { id: 'export', label: 'Export', icon: <Download size={18} /> },
+    { id: 'backup', label: 'Backup', icon: <Shield size={18} /> },
+  ];
+
+  return (
+    <div className="max-w-4xl mx-auto">
+      <div className="mb-6">
+        <h3 className="text-xl font-semibold text-gray-900 mb-2">Database Management</h3>
+        <p className="text-gray-600">Manage your CRM data persistence, exports, and backups</p>
+      </div>
+
+      {/* Tab Navigation */}
+      <div className="border-b mb-6">
+        <nav className="flex space-x-8">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`py-2 px-1 border-b-2 font-medium text-sm flex items-center space-x-2 ${
+                activeTab === tab.id
+                  ? 'border-blue-500 text-blue-600'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              {tab.icon}
+              <span>{tab.label}</span>
+            </button>
+          ))}
+        </nav>
+      </div>
+
+      {/* Tab Content */}
+      {activeTab === 'status' && (
+        <div className="space-y-6">
+          <div className="bg-white border rounded-lg p-6">
+            <h4 className="text-lg font-medium mb-4">Database Connection Status</h4>
+            
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                <div className={`w-3 h-3 rounded-full ${isDatabaseConnected ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                <span className="font-medium">
+                  {isDatabaseConnected ? 'Connected to PostgreSQL' : 'Not Connected'}
+                </span>
+              </div>
+              
+              <button
+                onClick={testConnection}
+                disabled={isLoading}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center space-x-2"
+              >
+                {isLoading ? (
+                  <RefreshCw className="animate-spin" size={16} />
+                ) : (
+                  <Database size={16} />
+                )}
+                <span>Test Connection</span>
+              </button>
+            </div>
+
+            {connectionStatus && (
+              <div className={`p-4 rounded-lg mb-4 ${
+                connectionStatus.success ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+              }`}>
+                <p className="font-medium">
+                  {connectionStatus.success ? '✅ Success!' : '❌ Error'}
+                </p>
+                <p className="text-sm mt-1">{connectionStatus.message}</p>
+                {connectionStatus.error && (
+                  <p className="text-xs mt-2 font-mono">{connectionStatus.error}</p>
+                )}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <div>
+                <span className="text-gray-500">Database Type:</span>
+                <span className="ml-2 font-medium">PostgreSQL</span>
+              </div>
+              <div>
+                <span className="text-gray-500">Platform:</span>
+                <span className="ml-2 font-medium">Vercel Serverless</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h5 className="font-medium text-blue-800 mb-2">Setup Instructions:</h5>
+            <ol className="text-sm text-blue-700 space-y-1">
+              <li>1. Set up PostgreSQL database (Vercel Postgres, Neon, or Supabase)</li>
+              <li>2. Add DATABASE_URL environment variable in Vercel</li>
+              <li>3. Test connection to initialize database tables</li>
+              <li>4. Import existing data or start fresh</li>
+            </ol>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'export' && (
+        <div className="space-y-6">
+          <div className="bg-white border rounded-lg p-6">
+            <h4 className="text-lg font-medium mb-4">Export Data</h4>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Select Table</label>
+                <select
+                  value={exportData.table}
+                  onChange={(e) => setExportData({ ...exportData, table: e.target.value })}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                >
+                  <option value="customers">Customers</option>
+                  <option value="tasks">Tasks</option>
+                  <option value="emails">Emails</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Export Format</label>
+                <select
+                  value={exportData.format}
+                  onChange={(e) => setExportData({ ...exportData, format: e.target.value })}
+                  className="w-full border border-gray-300 rounded-md px-3 py-2"
+                >
+                  <option value="json">JSON</option>
+                  <option value="csv">CSV</option>
+                </select>
+              </div>
+            </div>
+
+            <button
+              onClick={handleExport}
+              disabled={isLoading || !isDatabaseConnected}
+              className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 disabled:opacity-50 flex items-center space-x-2"
+            >
+              {isLoading ? (
+                <RefreshCw className="animate-spin" size={16} />
+              ) : (
+                <Download size={16} />
+              )}
+              <span>Export {exportData.table}</span>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'backup' && (
+        <div className="space-y-6">
+          <div className="bg-white border rounded-lg p-6">
+            <h4 className="text-lg font-medium mb-4">Database Backup</h4>
+            
+            <div className="space-y-4">
+              <div className="bg-gray-50 rounded-lg p-4">
+                <h5 className="font-medium text-gray-800 mb-2">Full Database Backup</h5>
+                <p className="text-sm text-gray-600 mb-4">
+                  Creates a complete backup of all your CRM data including customers, tasks, emails, and templates.
+                </p>
+                
+                <button
+                  onClick={handleBackup}
+                  disabled={isLoading || !isDatabaseConnected}
+                  className="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 disabled:opacity-50 flex items-center space-x-2"
+                >
+                  {isLoading ? (
+                    <RefreshCw className="animate-spin" size={16} />
+                  ) : (
+                    <Shield size={16} />
+                  )}
+                  <span>Create Full Backup</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Close Button */}
+      <div className="flex justify-end pt-6 border-t">
+        <button
+          onClick={onClose}
+          className="px-6 py-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// Modal Component
+const Modal = ({ children, onClose }) => {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between p-6 border-b">
+          <h3 className="text-lg font-semibold text-gray-900">Modal</h3>
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <X size={24} />
+          </button>
+        </div>
+        <div className="p-6">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Customer Form Component
+const CustomerForm = ({ customer, onSubmit }) => {
+  const [formData, setFormData] = useState({
+    name: customer?.name || '',
+    email: customer?.email || '',
+    phone: customer?.phone || '',
+    company: customer?.company || '',
+    address: customer?.address || '',
+    status: customer?.status || 'Lead',
+    orderValue: customer?.orderValue || 0,
+    tags: customer?.tags?.join(', ') || ''
+  });
+
+  const [errors, setErrors] = useState({});
+
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.name.trim()) newErrors.name = 'Name is required';
+    if (!formData.email.trim()) newErrors.email = 'Email is required';
+    if (formData.email && !/\S+@\S+\.\S+/.test(formData.email)) {
+      newErrors.email = 'Email is invalid';
+    }
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (validateForm()) {
+      onSubmit(formData);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <h3 className="text-lg font-semibold mb-4">
+        {customer ? 'Edit Customer' : 'Add New Customer'}
+      </h3>
+      
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
+          <input
+            type="text"
+            value={formData.name}
+            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.name ? 'border-red-500' : 'border-gray-300'
+            }`}
+          />
+          {errors.name && <p className="text-red-500 text-sm mt-1">{errors.name}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
+          <input
+            type="email"
+            value={formData.email}
+            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.email ? 'border-red-500' : 'border-gray-300'
+            }`}
+          />
+          {errors.email && <p className="text-red-500 text-sm mt-1">{errors.email}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
+          <input
+            type="tel"
+            value={formData.phone}
+            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Company</label>
+          <input
+            type="text"
+            value={formData.company}
+            onChange={(e) => setFormData({ ...formData, company: e.target.value })}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+          <select
+            value={formData.status}
+            onChange={(e) => setFormData({ ...formData, status: e.target.value })}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="Lead">Lead</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Order Value ($)</label>
+          <input
+            type="number"
+            value={formData.orderValue}
+            onChange={(e) => setFormData({ ...formData, orderValue: e.target.value })}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            min="0"
+            step="0.01"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Address</label>
+        <textarea
+          value={formData.address}
+          onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+          rows={2}
+          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Tags (comma separated)</label>
+        <input
+          type="text"
+          value={formData.tags}
+          onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="VIP, Enterprise, Hot Lead"
+        />
+      </div>
+
+      <div className="flex justify-end space-x-3 pt-4">
+        <button
+          type="submit"
+          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 flex items-center transition-colors"
+        >
+          <Save size={16} className="mr-2" />
+          {customer ? 'Update Customer' : 'Add Customer'}
+        </button>
+      </div>
+    </form>
+  );
+};
+
+// Task Form Component
+const TaskForm = ({ task, customers, staffMembers, onSubmit }) => {
+  const [formData, setFormData] = useState({
+    title: task?.title || '',
+    description: task?.description || '',
+    customerId: task?.customerId || '',
+    assignedTo: task?.assignedTo || '',
+    priority: task?.priority || 'Medium',
+    dueDate: task?.dueDate || '',
+    tags: task?.tags?.join(', ') || ''
+  });
+
+  const [errors, setErrors] = useState({});
+
+  const validateForm = () => {
+    const newErrors = {};
+    if (!formData.title.trim()) newErrors.title = 'Title is required';
+    if (!formData.customerId) newErrors.customerId = 'Customer is required';
+    if (!formData.assignedTo) newErrors.assignedTo = 'Assigned to is required';
+    if (!formData.dueDate) newErrors.dueDate = 'Due date is required';
+    
+    setErrors(newErrors);
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (validateForm()) {
+      onSubmit(formData);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <h3 className="text-lg font-semibold mb-4">
+        {task ? 'Edit Task' : 'Create New Task'}
+      </h3>
+      
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
+        <input
+          type="text"
+          value={formData.title}
+          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+          className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+            errors.title ? 'border-red-500' : 'border-gray-300'
+          }`}
+        />
+        {errors.title && <p className="text-red-500 text-sm mt-1">{errors.title}</p>}
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+        <textarea
+          value={formData.description}
+          onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+          rows={3}
+          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Customer *</label>
+          <select
+            value={formData.customerId}
+            onChange={(e) => setFormData({ ...formData, customerId: e.target.value })}
+            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.customerId ? 'border-red-500' : 'border-gray-300'
+            }`}
+          >
+            <option value="">Select Customer</option>
+            {customers.map(customer => (
+              <option key={customer.id} value={customer.id}>
+                {customer.name} ({customer.company})
+              </option>
+            ))}
+          </select>
+          {errors.customerId && <p className="text-red-500 text-sm mt-1">{errors.customerId}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Assigned To *</label>
+          <select
+            value={formData.assignedTo}
+            onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
+            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.assignedTo ? 'border-red-500' : 'border-gray-300'
+            }`}
+          >
+            <option value="">Select Staff Member</option>
+            {staffMembers.map(staff => (
+              <option key={staff.id} value={staff.name}>
+                {staff.name} ({staff.role})
+              </option>
+            ))}
+          </select>
+          {errors.assignedTo && <p className="text-red-500 text-sm mt-1">{errors.assignedTo}</p>}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Priority</label>
+          <select
+            value={formData.priority}
+            onChange={(e) => setFormData({ ...formData, priority: e.target.value })}
+            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          >
+            <option value="Low">Low</option>
+            <option value="Medium">Medium</option>
+            <option value="High">High</option>
+          </select>
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Due Date *</label>
+          <input
+            type="date"
+            value={formData.dueDate}
+            onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+            className={`w-full border rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              errors.dueDate ? 'border-red-500' : 'border-gray-300'
+            }`}
+          />
+          {errors.dueDate && <p className="text-red-500 text-sm mt-1">{errors.dueDate}</p>}
+        </div>
+      </div>
+
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1">Tags (comma separated)</label>
+        <input
+          type="text"
+          value={formData.tags}
+          onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
+          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+          placeholder="Sales, Follow-up, Demo"
+        />
+      </div>
+
+      <div className="flex justify-end space-x-3 pt-4">
+        <button
+          type="submit"
+          className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 flex items-center transition-colors"
+        >
+          <Save size={16} className="mr-2" />
+          {task ? 'Update Task' : 'Create Task'}
+        </button>
+      </div>
+    </form>
+  );
+};
+
+export default CRM;
