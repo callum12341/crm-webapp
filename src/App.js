@@ -2914,7 +2914,7 @@ const CustomerForm = ({ customer, onSubmit }) => {
   );
 };
 
-// Task Form Component
+// Task Form Component.
 const TaskForm = ({ task, customers, staffMembers, onSubmit }) => {
   const [formData, setFormData] = useState({
     title: task?.title || '',
